@@ -4,6 +4,7 @@ Formaat gebaseerd op [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/).
 
 ## [0.8.3]
 ### Gewijzigd
+- De melding dat het certificaat van OVapi (`v0.ovapi.nl`, hostnaam komt niet overeen) niet geverifieerd kan worden staat nu op *info* in plaats van *waarschuwing*; de integratie schakelt de verificatie voor die host zelf uit, zoals eerder.
 - Repository verhuisd naar `GruttePier013/OVapi-stops-and-timetables`; manifest, README en licentie verwijzen daarheen. README is ingekort en richt zich alleen op Home Assistant-gebruikers.
 - Alle voorbeelden in README, vertalingen, documentatie en tests zijn generiek gemaakt (geen echte plaatsen, straten of TPC-codes meer).
 - Het veld *Plaatsnaam* is nu een adreszoeker (PDOK): alleen een plaats zet de kaart op het centrum van de bebouwde kom (2 km); straat + plaats zet de pin op die straat (500 m); een adres of postcode op dat punt (250 m).

@@ -151,7 +151,7 @@ class DutchBusApi:
         try:
             data = await self._ovapi_request(self.session, path, timeout)
         except (ClientSSLError, ssl.SSLError, ssl.CertificateError) as err:
-            _LOGGER.warning("Certificaat van OVapi niet geverifieerd (%s); voor deze host wordt verificatie overgeslagen", err)
+            _LOGGER.info("Certificaat van OVapi niet geverifieerd (%s); voor deze host wordt verificatie overgeslagen", err)
             self._insecure_since = time.monotonic()
             return await self._ovapi_request(self._ovapi_session, path, timeout)
         self._insecure_since = None
