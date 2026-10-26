@@ -134,16 +134,21 @@ async def test_multiple_stops_share_one_request(hass, aioclient_mock):
     assert hass.states.get(eid(hass, "departures", code="90100422")).state == "14:07 (Lijn 74)"
 
 
-async def test_zone_interval_number_default_and_change(hass, aioclient_mock):
+async def test_zone_selects_default_and_change(hass, aioclient_mock):
     aioclient_mock.get(URL.format("90100421"), json=passes("90100421"))
     e = entry([{"tpc_codes": ["90100421"], "name": "K"}])
     await setup(hass, e)
-    num = eid(hass, "zone_interval", "number")
-    assert float(hass.states.get(num).state) == 2
+    sel = eid(hass, "zone_refresh", "select")
+    assert hass.states.get(sel).state == "every_5_min"
     coord = e.runtime_data.coordinators["90100421"]
-    assert coord._zone_interval() == 120
-    await hass.services.async_call("number", "set_value", {"entity_id": num, "value": 5}, blocking=True)
-    assert coord._zone_interval() == 300
+    assert coord.zone_interval_min == 5 and coord.zone_stop_after_min == 30
+    await hass.services.async_call("select", "select_option", {"entity_id": sel, "option": "every_10_min"}, blocking=True)
+    assert coord.zone_interval_min == 10
+    await hass.services.async_call("select", "select_option", {"entity_id": sel, "option": "on_entry"}, blocking=True)
+    assert coord.zone_interval_min is None  # once per visit
+    stop = eid(hass, "zone_stop_after", "select")
+    await hass.services.async_call("select", "select_option", {"entity_id": stop, "option": "unlimited"}, blocking=True)
+    assert coord.zone_stop_after_min is None
 
 
 async def test_destination_filter(hass, aioclient_mock):
@@ -159,8 +164,9 @@ async def test_diagnostics_redacts_locations(hass, aioclient_mock):
     await setup(hass, e)
     diag = await async_get_config_entry_diagnostics(hass, e)
     stop = diag["stops"]["90100421"]
-    assert stop["stop"]["lat"] == "**REDACTED**" and stop["departures_in_view"] == 2
-    assert stop["consecutive_failures"] == 0 and stop["stale"] is False
+    assert stop["config"]["lat"] == "**REDACTED**" and stop["departures_in_view"] == 2
+    assert stop["health"]["consecutive_errors"] == 0 and stop["health"]["stale"] is False
+    assert stop["raw_response"]["90100421"]["Passes"]  # raw OVapi answer of this stop
 
 
 async def test_old_ndov_file_creates_repair_issue(hass):
@@ -226,6 +232,8 @@ async def test_place_name_recenters_map_with_2km_radius(hass, monkeypatch):
 
     monkeypatch.setattr(get_api(hass), "async_locate", fake_locate)
     r = await hass.config_entries.flow.async_init(DOMAIN, context={"source": "user"})
+    assert r["type"] is FlowResultType.FORM and r["step_id"] == "user"  # defaults screen
+    r = await hass.config_entries.flow.async_configure(r["flow_id"], {})
     r = await hass.config_entries.flow.async_configure(r["flow_id"], {"next_step_id": "search"})
     assert r["step_id"] == "search" and [str(k) for k in r["data_schema"].schema][0] == "place"
     loc = {"latitude": 52.0, "longitude": 5.0, "radius": 250}
@@ -271,3 +279,25 @@ def test_home_distance_text_one_decimal_and_walking_only_below_2km():
     assert flow._home_distance_text(near) == "0,7 km lopen van huis"
     text = flow._home_distance_text(far)
     assert text.endswith(" km van huis") and "lopen" not in text and "," in text
+
+
+async def test_marker_override_and_reset(hass, aioclient_mock):
+    aioclient_mock.get(URL.format("90100421"), json=passes("90100421"))
+    e = entry([{"tpc_codes": ["90100421"], "name": "K", **LOC}])
+    await setup(hass, e)
+
+    async def edit(extra):
+        r = await e.start_reconfigure_flow(hass)
+        r = await hass.config_entries.flow.async_configure(r["flow_id"], {"stop": "90100421"})
+        r = await hass.config_entries.flow.async_configure(
+            r["flow_id"], {"name": "K", "tpc_codes": "90100421", **extra})
+        assert r["reason"] == "reconfigure_successful"
+        await hass.async_block_till_done()
+
+    await edit({"marker": {"latitude": 52.1, "longitude": 5.3}})
+    assert e.options["stops"][0]["marker"] == {"lat": 52.1, "lon": 5.3}
+    attrs = hass.states.get(eid(hass, "location")).attributes
+    assert (attrs["latitude"], attrs["longitude"]) == (52.1, 5.3)
+    await edit({"marker_reset": True, "marker": {"latitude": 52.1, "longitude": 5.3}})
+    assert e.options["stops"][0]["marker"] is None
+    assert hass.states.get(eid(hass, "location")).attributes["latitude"] == LOC["lat"]

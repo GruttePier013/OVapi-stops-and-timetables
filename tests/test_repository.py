@@ -95,3 +95,52 @@ def test_unknown_stop_marker_present():
     from PIL import Image  # noqa: PLC0415
     im = Image.open(INTEGRATION / "static" / "halte_onbekend.png")
     assert im.size == (256, 256)
+
+
+def _placeholders(text: str) -> set[str]:
+    return set(re.findall(r"\{[a-z_0-9]+\}", text))
+
+
+def _leaves(data: dict, prefix: str = ""):
+    for key, value in data.items():
+        if isinstance(value, dict):
+            yield from _leaves(value, f"{prefix}{key}.")
+        elif isinstance(value, str):
+            yield f"{prefix}{key}", value
+
+
+def test_translation_placeholders_match():
+    en = dict(_leaves(_load(INTEGRATION / "translations" / "en.json")))
+    nl = dict(_leaves(_load(INTEGRATION / "translations" / "nl.json")))
+    for key, text in en.items():
+        assert _placeholders(text) == _placeholders(nl[key]), key
+
+
+def test_manifest_import_executor_and_hacs_minimum():
+    assert _load(INTEGRATION / "manifest.json").get("import_executor") is True
+    assert _load(ROOT / "hacs.json")["homeassistant"] == "2026.2.0"
+
+
+def test_services_use_entity_target_only():
+    text = (INTEGRATION / "services.yaml").read_text(encoding="utf-8")
+    assert "refresh:" in text
+    assert "device:" not in text  # hassfest rejects device filters on targets
+
+
+def test_no_deprecated_calls_or_removed_features():
+    sources = "\n".join(p.read_text(encoding="utf-8") for p in INTEGRATION.glob("*.py"))
+    for banned in (
+        "helpers.service import async_extract_referenced_entity_ids",
+        "remove_config_entry_id=",
+        "DEVICE_TRACKER",
+        "location_name",
+    ):
+        assert banned not in sources, banned
+
+
+def test_no_personal_data_in_repo():
+    needles = ("52.0907", "5.1214")
+    for path in [*INTEGRATION.glob("*.py"), ROOT / "README.md", ROOT / "CHANGELOG.md"]:
+        text = path.read_text(encoding="utf-8")
+        for needle in needles:
+            assert needle not in text, f"{path.name}: {needle}"

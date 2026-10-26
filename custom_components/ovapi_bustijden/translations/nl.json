@@ -2,10 +2,23 @@
   "config": {
     "step": {
       "user": {
-        "title": "OVapi bussen en halteinformatie",
-        "menu_options": {
-          "search": "Haltes zoeken in een zone op de kaart",
-          "manual": "TPC-codes invoeren"
+        "title": "Standaardinstellingen",
+        "description": "Standaardwaarden voor nieuwe haltes: vernieuwen en 'vernieuwen als in zone'. Later te wijzigen via Configureren → Instellingen, per halte via de instellingen-entiteiten.",
+        "data": {
+          "default_schedule": "Vernieuwingsfrequentie",
+          "default_radius": "Zone radius",
+          "default_refresh_on_approach": "Vernieuwen als in zone",
+          "default_approach_only": "Alleen vernieuwen bij naderen",
+          "default_zone_interval": "Vernieuwingsfrequentie in zone",
+          "default_zone_stop_after": "Vernieuwen in zone stoppen na"
+        },
+        "data_description": {
+          "default_schedule": "Hoe vaak een halte zichzelf ververst, los van de zone. 'Nooit' = alleen de knop, de zone of je eigen automatisering.",
+          "default_radius": "Straal rond de halte (meters) waarbinnen een persoon als 'in de zone' telt.",
+          "default_refresh_on_approach": "Ververs zodra een gevolgd persoon de zone binnenkomt. Staat een halte in de thuiszone van Home Assistant, dan staat dit voor die halte uit.",
+          "default_approach_only": "Na de eerste vernieuwing bij binnenkomst alleen verversen als iemand minstens 25 m dichterbij is gekomen.",
+          "default_zone_interval": "Hoe vaak er ververst wordt zolang iemand in de zone is. 'Bij binnenkomst' = één keer per bezoek.",
+          "default_zone_stop_after": "Na hoeveel minuten een bezoek niet meer ververst, ook als je in de zone blijft."
         }
       },
       "search": {
@@ -112,10 +125,14 @@
           "tpc_codes": "TPC-code(s)",
           "lines": "Lijnen tonen (leeg = alle lijnen)",
           "extra_lines": "Andere lijnen (handmatig, optioneel)",
-          "destinations": "Alleen bestemmingen met… (kommagescheiden, leeg = alle)"
+          "destinations": "Alleen bestemmingen met… (kommagescheiden, leeg = alle)",
+          "marker": "Positie van de marker op de kaart",
+          "marker_reset": "Marker terugzetten naar de oorspronkelijke positie"
         },
         "data_description": {
-          "destinations": "Bijv. Station, Noord: toont alleen vertrekken waarvan de bestemming een van deze woorden bevat."
+          "destinations": "Bijv. Station, Noord: toont alleen vertrekken waarvan de bestemming een van deze woorden bevat.",
+          "marker": "Sleep de pin om alleen de marker op de HA-kaart te verschuiven. Afstanden en zones blijven de echte haltepositie gebruiken.",
+          "marker_reset": "Vink aan en verstuur om de verschoven marker te resetten."
         }
       },
       "extra_options": {
@@ -130,6 +147,13 @@
           "direction_in_name": "Standaard aan. Uit: alleen de haltenaam (bijvoorbeeld Voorbeeldstad, Markt); aan: Voorbeeldstad, Markt - ri. Station.",
           "stale_hours": "Standaard 12 uur. Daarna tonen de haltes 'Data vernieuwen' en een halte met vraagteken. Later te wijzigen via Configureren → Instellingen.",
           "refresh_ndov": "Selecteer deze optie als je de nieuwe of gewijzigde halte niet in de lijst hebt staan. De configuratie begint dan opnieuw met downloaden."
+        }
+      },
+      "menu": {
+        "title": "OVapi bussen en halteinformatie",
+        "menu_options": {
+          "search": "Haltes zoeken in een zone op de kaart",
+          "manual": "TPC-codes invoeren"
         }
       }
     },
@@ -271,10 +295,14 @@
           "tpc_codes": "TPC-code(s)",
           "lines": "Lijnen tonen (leeg = alle lijnen)",
           "extra_lines": "Andere lijnen (handmatig, optioneel)",
-          "destinations": "Alleen bestemmingen met… (kommagescheiden, leeg = alle)"
+          "destinations": "Alleen bestemmingen met… (kommagescheiden, leeg = alle)",
+          "marker": "Positie van de marker op de kaart",
+          "marker_reset": "Marker terugzetten naar de oorspronkelijke positie"
         },
         "data_description": {
-          "destinations": "Bijv. Station, Noord: toont alleen vertrekken waarvan de bestemming een van deze woorden bevat."
+          "destinations": "Bijv. Station, Noord: toont alleen vertrekken waarvan de bestemming een van deze woorden bevat.",
+          "marker": "Sleep de pin om alleen de marker op de HA-kaart te verschuiven. Afstanden en zones blijven de echte haltepositie gebruiken.",
+          "marker_reset": "Vink aan en verstuur om de verschoven marker te resetten."
         }
       },
       "remove_stops": {
@@ -285,13 +313,53 @@
       },
       "settings": {
         "title": "Instellingen",
-        "description": "Maximaal aantal vertrekken in het attribuut. Gevolgde personen bepalen wie de 'Persoon nabij'-sensoren en 'Vernieuwen in zone' activeren.",
+        "description": "Maximaal aantal vertrekken in het attribuut. Gevolgde personen bepalen wie de 'Personen nabij'-sensoren en 'Vernieuwen als in zone' activeren.",
         "data": {
           "max_departures": "Aantal vertrekken in het attribuut",
           "persons": "Gevolgde personen (leeg = alle)",
           "map_logo": "Logo op de HA-kaart gebruiken (uit = gewoon bus-icoon)",
           "stale_hours": "Na hoeveel uur zijn busgegevens verouderd?",
-          "line_sensors": "Per lijn een sensor aanmaken (bijv. Lijn 74)"
+          "line_sensors": "Per lijn een sensor aanmaken (bijv. Lijn 74)",
+          "zone_cooldown": "Afkoeltijd tussen bezoeken (minuten)"
+        },
+        "data_description": {
+          "zone_cooldown": "Een nieuw bezoek (met een nieuwe vernieuwing bij binnenkomst) begint pas als de zone zo lang leeg was. Meerdere personen delen één bezoek."
+        },
+        "sections": {
+          "defaults": {
+            "name": "Standaardwaarden voor haltes",
+            "data": {
+              "default_schedule": "Vernieuwingsfrequentie",
+              "default_radius": "Zone radius",
+              "default_refresh_on_approach": "Vernieuwen als in zone",
+              "default_approach_only": "Alleen vernieuwen bij naderen",
+              "default_zone_interval": "Vernieuwingsfrequentie in zone",
+              "default_zone_stop_after": "Vernieuwen in zone stoppen na",
+              "apply_existing": "Toepassen op bestaande haltes"
+            },
+            "data_description": {
+              "default_schedule": "Hoe vaak een halte zichzelf ververst, los van de zone. 'Nooit' = alleen de knop, de zone of je eigen automatisering.",
+              "default_radius": "Straal rond de halte (meters) waarbinnen een persoon als 'in de zone' telt.",
+              "default_refresh_on_approach": "Ververs zodra een gevolgd persoon de zone binnenkomt. Staat een halte in de thuiszone van Home Assistant, dan staat dit voor die halte uit.",
+              "default_approach_only": "Na de eerste vernieuwing bij binnenkomst alleen verversen als iemand minstens 25 m dichterbij is gekomen.",
+              "default_zone_interval": "Hoe vaak er ververst wordt zolang iemand in de zone is. 'Bij binnenkomst' = één keer per bezoek.",
+              "default_zone_stop_after": "Na hoeveel minuten een bezoek niet meer ververst, ook als je in de zone blijft.",
+              "apply_existing": "Zet deze standaardwaarden ook op de haltes die al bestaan (standaard uit)."
+            }
+          },
+          "protection": {
+            "name": "Foutbeveiliging",
+            "data": {
+              "max_errors": "Fouten voordat een halte pauzeert",
+              "api_max_errors": "Fouten voordat alle automatische aanroepen pauzeren",
+              "api_spacing": "Minimale tussenruimte tussen automatische aanroepen"
+            },
+            "data_description": {
+              "max_errors": "Na dit aantal opeenvolgende fouten stopt een halte met automatisch verversen (met een reparatiemelding). De knop Vernieuwen werkt altijd en hervat de halte.",
+              "api_max_errors": "Na dit aantal opeenvolgende fouten (of bij HTTP 429) pauzeren alle automatische aanroepen tijdelijk; de laatste gegevens blijven zichtbaar.",
+              "api_spacing": "Seconden tussen automatische OVapi-aanroepen, ook bij gelijke vernieuwingsfrequenties. Handmatig vernieuwen wacht nooit."
+            }
+          }
         }
       },
       "extra_options": {
@@ -360,6 +428,12 @@
       },
       "location": {
         "name": "Halte op kaart"
+      },
+      "distance_to_person": {
+        "name": "Afstand tot persoon"
+      },
+      "error_count": {
+        "name": "Opeenvolgende fouten"
       }
     },
     "button": {
@@ -379,35 +453,100 @@
           "every_5_min": "Elke 5 min",
           "every_5_min_rush": "Elke 5 min (06–09 en 16–19 uur)"
         }
+      },
+      "zone_refresh": {
+        "name": "Vernieuwingsfrequentie in zone",
+        "state": {
+          "on_entry": "Bij binnenkomst (1x)",
+          "every_2_min": "Elke 2 min",
+          "every_5_min": "Elke 5 min",
+          "every_10_min": "Elke 10 min",
+          "every_15_min": "Elke 15 min"
+        }
+      },
+      "zone_stop_after": {
+        "name": "Vernieuwen in zone stoppen na",
+        "state": {
+          "10_min": "10 min",
+          "30_min": "30 min",
+          "60_min": "60 min",
+          "120_min": "120 min",
+          "unlimited": "Onbeperkt"
+        }
       }
     },
     "number": {
       "proximity_radius": {
         "name": "Zone radius"
-      },
-      "zone_stop_after": {
-        "name": "Vernieuwen in zone stoppen na"
-      },
-      "zone_interval": {
-        "name": "Vernieuwen in zone elke"
       }
     },
     "switch": {
       "refresh_on_approach": {
         "name": "Vernieuwen als in zone"
+      },
+      "approach_only": {
+        "name": "Alleen vernieuwen bij naderen"
+      }
+    },
+    "binary_sensor": {
+      "paused": {
+        "name": "Gepauzeerd"
       }
     }
   },
   "services": {
-    "refresh_stops": {
+    "refresh": {
       "name": "Halte vernieuwen",
       "description": "Vernieuwt alle haltes, of alleen de haltes (apparaten of entiteiten) die je als doel opgeeft."
+    },
+    "refresh_stops": {
+      "name": "Halte vernieuwen (oude naam)",
+      "description": "Oude naam van de actie *Halte vernieuwen*; werkt hetzelfde."
     }
   },
   "issues": {
     "ndov_outdated": {
       "title": "Haltebestand van NDOV Loket is verouderd",
       "description": "Het haltebestand is {days} dagen oud (grens: {limit} dagen). Nieuwe of gewijzigde haltes ontbreken mogelijk. Open Configureren → Haltes zoeken en vink *opnieuw downloaden* aan om het te verversen."
+    },
+    "stop_paused": {
+      "title": "Halte {name} is gepauzeerd",
+      "description": "Na {errors} opeenvolgende fouten ververst deze halte niet meer automatisch. Druk op de knop *Vernieuwen* van de halte (of gebruik de actie *Halte vernieuwen*) om het opnieuw te proberen; bij succes wordt de halte hervat."
+    },
+    "api_paused": {
+      "title": "OVapi is tijdelijk gepauzeerd",
+      "description": "Na {errors} opeenvolgende fouten (of een melding dat er te veel verzoeken waren) worden automatische aanroepen tijdelijk gepauzeerd. De laatst bekende vertrektijden blijven zichtbaar. De integratie probeert het vanzelf opnieuw; handmatig vernieuwen kan altijd."
+    }
+  },
+  "selector": {
+    "refresh_schedule": {
+      "options": {
+        "never": "Nooit",
+        "daily": "Dagelijks (06:00)",
+        "hourly": "Ieder uur",
+        "every_30_min_06_09": "Elke 30 min (06–09 uur)",
+        "every_30_min_16_19": "Elke 30 min (16–19 uur)",
+        "every_5_min": "Elke 5 min",
+        "every_5_min_rush": "Elke 5 min (06–09 en 16–19 uur)"
+      }
+    },
+    "zone_refresh": {
+      "options": {
+        "on_entry": "Bij binnenkomst (1x)",
+        "every_2_min": "Elke 2 min",
+        "every_5_min": "Elke 5 min",
+        "every_10_min": "Elke 10 min",
+        "every_15_min": "Elke 15 min"
+      }
+    },
+    "zone_stop_after": {
+      "options": {
+        "10_min": "10 min",
+        "30_min": "30 min",
+        "60_min": "60 min",
+        "120_min": "120 min",
+        "unlimited": "Onbeperkt"
+      }
     }
   }
 }

@@ -2,10 +2,23 @@
   "config": {
     "step": {
       "user": {
-        "title": "OVapi buses and stop information",
-        "menu_options": {
-          "search": "Search stops in a zone on the map",
-          "manual": "Enter TPC codes"
+        "title": "Default settings",
+        "description": "Default values for new stops: refreshing and 'refresh when in zone'. You can change them later under Configure → Settings, and per stop with the settings entities.",
+        "data": {
+          "default_schedule": "Refresh frequency",
+          "default_radius": "Zone radius",
+          "default_refresh_on_approach": "Refresh when in zone",
+          "default_approach_only": "Refresh only when approaching",
+          "default_zone_interval": "Refresh frequency in zone",
+          "default_zone_stop_after": "Stop refreshing in zone after"
+        },
+        "data_description": {
+          "default_schedule": "How often a stop refreshes itself, independent of the zone. 'Never' = only the button, the zone or your own automations.",
+          "default_radius": "Radius around the stop (meters) within which a person counts as 'in the zone'.",
+          "default_refresh_on_approach": "Refresh as soon as a followed person enters the zone. If a stop lies inside the Home Assistant home zone, this is off for that stop.",
+          "default_approach_only": "After the first refresh on entry, only refresh when someone got at least 25 m closer.",
+          "default_zone_interval": "How often to refresh while someone is in the zone. 'On entry' = once per visit.",
+          "default_zone_stop_after": "After how many minutes a visit stops refreshing, even if you stay in the zone."
         }
       },
       "search": {
@@ -112,10 +125,14 @@
           "tpc_codes": "TPC code(s)",
           "lines": "Lines to show (empty = all lines)",
           "extra_lines": "Other lines (manual, optional)",
-          "destinations": "Only destinations containing… (comma separated, empty = all)"
+          "destinations": "Only destinations containing… (comma separated, empty = all)",
+          "marker": "Marker position on the map",
+          "marker_reset": "Reset marker to the original position"
         },
         "data_description": {
-          "destinations": "E.g. Station, Noord: only shows departures whose destination contains one of these words."
+          "destinations": "E.g. Station, Noord: only shows departures whose destination contains one of these words.",
+          "marker": "Drag the pin to move only the marker on the HA map. Distances and zones keep using the real stop position.",
+          "marker_reset": "Tick and submit to reset the moved marker."
         }
       },
       "extra_options": {
@@ -130,6 +147,13 @@
           "direction_in_name": "On by default. Off: just the stop name (for example Voorbeeldstad, Markt); on: Voorbeeldstad, Markt - ri. Station.",
           "stale_hours": "Default 12 hours. After that stops show 'Data vernieuwen' and a stop icon with a question mark. Change later under Configure → Settings.",
           "refresh_ndov": "Select this if the new or changed stop is not in the list. The configuration then starts over with the download."
+        }
+      },
+      "menu": {
+        "title": "OVapi buses and stop information",
+        "menu_options": {
+          "search": "Search stops in a zone on the map",
+          "manual": "Enter TPC codes"
         }
       }
     },
@@ -271,10 +295,14 @@
           "tpc_codes": "TPC code(s)",
           "lines": "Lines to show (empty = all lines)",
           "extra_lines": "Other lines (manual, optional)",
-          "destinations": "Only destinations containing… (comma separated, empty = all)"
+          "destinations": "Only destinations containing… (comma separated, empty = all)",
+          "marker": "Marker position on the map",
+          "marker_reset": "Reset marker to the original position"
         },
         "data_description": {
-          "destinations": "E.g. Station, Noord: only shows departures whose destination contains one of these words."
+          "destinations": "E.g. Station, Noord: only shows departures whose destination contains one of these words.",
+          "marker": "Drag the pin to move only the marker on the HA map. Distances and zones keep using the real stop position.",
+          "marker_reset": "Tick and submit to reset the moved marker."
         }
       },
       "remove_stops": {
@@ -285,13 +313,53 @@
       },
       "settings": {
         "title": "Settings",
-        "description": "Maximum number of departures in the attribute. Tracked persons determine who triggers the 'Person nearby' sensors and 'Refresh in zone'.",
+        "description": "Maximum number of departures in the attribute. Followed persons decide who triggers the 'Persons nearby' sensors and 'Refresh when in zone'.",
         "data": {
           "max_departures": "Departures listed in the attribute",
           "persons": "Tracked persons (empty = all)",
           "map_logo": "Use the logo on the HA map (off = plain bus icon)",
           "stale_hours": "Hours before bus data counts as outdated",
-          "line_sensors": "Create a sensor per line (e.g. Line 74)"
+          "line_sensors": "Create a sensor per line (e.g. Line 74)",
+          "zone_cooldown": "Cool-down between visits (minutes)"
+        },
+        "data_description": {
+          "zone_cooldown": "A new visit (with a new refresh on entry) only starts after the zone was empty this long. Several persons share one visit."
+        },
+        "sections": {
+          "defaults": {
+            "name": "Defaults for stops",
+            "data": {
+              "default_schedule": "Refresh frequency",
+              "default_radius": "Zone radius",
+              "default_refresh_on_approach": "Refresh when in zone",
+              "default_approach_only": "Refresh only when approaching",
+              "default_zone_interval": "Refresh frequency in zone",
+              "default_zone_stop_after": "Stop refreshing in zone after",
+              "apply_existing": "Apply to existing stops"
+            },
+            "data_description": {
+              "default_schedule": "How often a stop refreshes itself, independent of the zone. 'Never' = only the button, the zone or your own automations.",
+              "default_radius": "Radius around the stop (meters) within which a person counts as 'in the zone'.",
+              "default_refresh_on_approach": "Refresh as soon as a followed person enters the zone. If a stop lies inside the Home Assistant home zone, this is off for that stop.",
+              "default_approach_only": "After the first refresh on entry, only refresh when someone got at least 25 m closer.",
+              "default_zone_interval": "How often to refresh while someone is in the zone. 'On entry' = once per visit.",
+              "default_zone_stop_after": "After how many minutes a visit stops refreshing, even if you stay in the zone.",
+              "apply_existing": "Also set these defaults on the stops that already exist (off by default)."
+            }
+          },
+          "protection": {
+            "name": "Error protection",
+            "data": {
+              "max_errors": "Errors before a stop pauses",
+              "api_max_errors": "Errors before all automatic calls pause",
+              "api_spacing": "Minimum spacing between automatic calls"
+            },
+            "data_description": {
+              "max_errors": "After this many consecutive errors a stop stops refreshing automatically (with a repair issue). The Refresh button always works and resumes the stop.",
+              "api_max_errors": "After this many consecutive errors (or on HTTP 429) all automatic calls pause for a while; the last data stays visible.",
+              "api_spacing": "Seconds between automatic OVapi calls, even with equal refresh frequencies. Manual refreshes never wait."
+            }
+          }
         }
       },
       "extra_options": {
@@ -360,6 +428,12 @@
       },
       "location": {
         "name": "Stop on map"
+      },
+      "distance_to_person": {
+        "name": "Distance to person"
+      },
+      "error_count": {
+        "name": "Consecutive errors"
       }
     },
     "button": {
@@ -379,35 +453,100 @@
           "every_5_min": "Every 5 min",
           "every_5_min_rush": "Every 5 min (06–09 and 16–19)"
         }
+      },
+      "zone_refresh": {
+        "name": "Refresh frequency in zone",
+        "state": {
+          "on_entry": "On entry (once)",
+          "every_2_min": "Every 2 min",
+          "every_5_min": "Every 5 min",
+          "every_10_min": "Every 10 min",
+          "every_15_min": "Every 15 min"
+        }
+      },
+      "zone_stop_after": {
+        "name": "Stop refreshing in zone after",
+        "state": {
+          "10_min": "10 min",
+          "30_min": "30 min",
+          "60_min": "60 min",
+          "120_min": "120 min",
+          "unlimited": "Unlimited"
+        }
       }
     },
     "number": {
       "proximity_radius": {
         "name": "Zone radius"
-      },
-      "zone_stop_after": {
-        "name": "Stop refreshing in zone after"
-      },
-      "zone_interval": {
-        "name": "Refresh in zone every"
       }
     },
     "switch": {
       "refresh_on_approach": {
         "name": "Refresh when in zone"
+      },
+      "approach_only": {
+        "name": "Refresh only when approaching"
+      }
+    },
+    "binary_sensor": {
+      "paused": {
+        "name": "Paused"
       }
     }
   },
   "services": {
+    "refresh": {
+      "name": "Refresh stop",
+      "description": "Refreshes all stops, or only the stops (devices or entities) you pick as target."
+    },
     "refresh_stops": {
-      "name": "Refresh stops",
-      "description": "Refreshes all stops, or only the stops (devices or entities) you specify as target."
+      "name": "Refresh stop (old name)",
+      "description": "Old name of the *Refresh stop* action; works the same."
     }
   },
   "issues": {
     "ndov_outdated": {
       "title": "NDOV stop file is outdated",
       "description": "The stop file is {days} days old (limit: {limit} days). New or changed stops may be missing. Open Configure → Search stops and tick *download again* to refresh it."
+    },
+    "stop_paused": {
+      "title": "Stop {name} is paused",
+      "description": "After {errors} consecutive errors this stop no longer refreshes automatically. Press the stop's *Refresh* button (or use the *Refresh stop* action) to try again; on success the stop resumes."
+    },
+    "api_paused": {
+      "title": "OVapi is paused for a while",
+      "description": "After {errors} consecutive errors (or a 'too many requests' answer) automatic calls are paused temporarily. The last known departures stay visible. The integration retries by itself; refreshing manually always works."
+    }
+  },
+  "selector": {
+    "refresh_schedule": {
+      "options": {
+        "never": "Never",
+        "daily": "Daily (06:00)",
+        "hourly": "Hourly",
+        "every_30_min_06_09": "Every 30 min (06–09)",
+        "every_30_min_16_19": "Every 30 min (16–19)",
+        "every_5_min": "Every 5 min",
+        "every_5_min_rush": "Every 5 min (06–09 and 16–19)"
+      }
+    },
+    "zone_refresh": {
+      "options": {
+        "on_entry": "On entry (once)",
+        "every_2_min": "Every 2 min",
+        "every_5_min": "Every 5 min",
+        "every_10_min": "Every 10 min",
+        "every_15_min": "Every 15 min"
+      }
+    },
+    "zone_stop_after": {
+      "options": {
+        "10_min": "10 min",
+        "30_min": "30 min",
+        "60_min": "60 min",
+        "120_min": "120 min",
+        "unlimited": "Unlimited"
+      }
     }
   }
 }

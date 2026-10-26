@@ -1,4 +1,4 @@
-"""Sensoren per halte (zelfde attributen als de yaml-sensoren, zodat bestaande kaarten blijven werken)."""
+"""Sensors per stop (same attributes as the YAML sensors, so existing cards keep working)."""
 from __future__ import annotations
 
 from datetime import datetime
@@ -9,7 +9,7 @@ from homeassistant.components.sensor import (
     SensorEntity,
     SensorStateClass,
 )
-from homeassistant.const import EntityCategory, UnitOfLength
+from homeassistant.const import MATCH_ALL, EntityCategory, UnitOfLength
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -26,7 +26,17 @@ async def async_setup_entry(
 ) -> None:
     entities: list[DutchBusEntity] = []
     for c in entry.runtime_data.coordinators.values():
-        entities += [NextDeparture(c), Departures(c), Lines(c), NearbyPersons(c), FetchedCount(c), LastUpdate(c), TpcCodes(c)]
+        entities += [
+            NextDeparture(c),
+            Departures(c),
+            Lines(c),
+            NearbyPersons(c),
+            DistanceToPerson(c),
+            FetchedCount(c),
+            LastUpdate(c),
+            TpcCodes(c),
+            ErrorCount(c),
+        ]
         if c.location is not None:
             entities.append(StopOnMap(c))
         if entry.options.get(CONF_LINE_SENSORS, DEFAULT_LINE_SENSORS):
@@ -39,7 +49,7 @@ async def async_setup_entry(
 
 
 def _setup_line_sensors(c: StopCoordinator, async_add_entities: AddEntitiesCallback) -> None:
-    """Per lijn die op de halte rijdt een sensor; nieuwe lijnen krijgen vanzelf een sensor bij een volgende verversing."""
+    """One sensor per line serving the stop; new lines get a sensor automatically on a later refresh."""
     known: set[str] = set()
 
     @callback
@@ -50,25 +60,28 @@ def _setup_line_sensors(c: StopCoordinator, async_add_entities: AddEntitiesCallb
             async_add_entities([LineDeparture(c, line) for line in sorted(new)])
 
     add_new()
-    c.config_entry.async_on_unload(c.async_add_listener(add_new))
+    c.entry.async_on_unload(c.async_add_listener(add_new))
 
 
 class DutchBusEntity(CoordinatorEntity[StopCoordinator]):
     _attr_has_entity_name = True
+    # Attributes are informational (departure lists, positions): keep them out of the recorder database.
+    # The states themselves are still recorded and cards read the attributes from the state machine.
+    _unrecorded_attributes = frozenset({MATCH_ALL})
 
     @property
     def available(self) -> bool:
-        """Na een mislukte verversing blijft de laatste data zichtbaar (en wordt na de timeout 'Data vernieuwen')."""
+        """After a failed refresh the last data stays visible (and becomes 'Data vernieuwen' after the timeout)."""
         return self.coordinator.data is not None or self.coordinator.last_update_success
 
     def __init__(self, coordinator: StopCoordinator, key: str) -> None:
         super().__init__(coordinator)
-        self._attr_translation_key = key  # voor de vertaalde opties van o.a. de select
+        self._attr_translation_key = key  # for the translated options of e.g. the select
         self._attr_name = NAMES_NL.get(key)  # namen (en entity_id's) altijd Nederlands
         # unique_id-formaat ongewijzigd t.o.v. 0.1.x
         self._attr_unique_id = f"{coordinator.key}_{key}"
         loc = coordinator.location
-        # 'Bezoeken' op de apparaatpagina opent de halte op een kaart
+        # 'Visit' on the device page opens the stop on a map
         url = (
             f"https://www.openstreetmap.org/?mlat={loc[0]:.6f}&mlon={loc[1]:.6f}"
             f"#map=18/{loc[0]:.6f}/{loc[1]:.6f}"
@@ -85,10 +98,10 @@ class DutchBusEntity(CoordinatorEntity[StopCoordinator]):
 
 
 class MinuteTickerMixin:
-    """Schrijf elke minuut de status opnieuw (over_min, verdwijnen van vertrokken bussen).
+    """Rewrite the state every minute (minutes-until, disappearance of departed buses).
 
-    De yaml-sensoren deden dit via ``now()`` in de template; hier gebeurt het zonder nieuwe
-    OVapi-aanvraag, ook als polling uit staat. De halte-coordinator heeft daarvoor één gedeelde timer.
+    The YAML sensors did this via ``now()`` in the template; here it happens without a new
+    OVapi request, even when polling is off. The stop coordinator has one shared timer for this.
     """
 
     async def async_added_to_hass(self) -> None:
@@ -104,7 +117,6 @@ class MinuteTickerMixin:
 
 class NextDeparture(MinuteTickerMixin, DutchBusEntity, SensorEntity):
     _attr_device_class = SensorDeviceClass.TIMESTAMP
-    _unrecorded_attributes = frozenset({"lijnnaam", "bestemming"})
 
     def __init__(self, coordinator: StopCoordinator) -> None:
         super().__init__(coordinator, "next_departure")
@@ -134,7 +146,7 @@ class NextDeparture(MinuteTickerMixin, DutchBusEntity, SensorEntity):
 
 
 class Lines(MinuteTickerMixin, DutchBusEntity, SensorEntity):
-    """Lijnen die nu in de gegevens voorkomen: '34, 73, 350'. Handig om te zien dat een lijn niet rijdt."""
+    """Lines currently in the data: '34, 73, 350'. Handy to see that a line is not running."""
 
     def __init__(self, coordinator: StopCoordinator) -> None:
         super().__init__(coordinator, "lines")
@@ -159,7 +171,7 @@ class Lines(MinuteTickerMixin, DutchBusEntity, SensorEntity):
 
 
 class NearbyPersons(DutchBusEntity, SensorEntity):
-    """'Geen' of de namen van de gevolgde personen binnen de zone-radius van de halte."""
+    """'Geen' or the names of the tracked persons within the zone radius of the stop."""
 
 
     def __init__(self, coordinator: StopCoordinator) -> None:
@@ -193,11 +205,38 @@ class NearbyPersons(DutchBusEntity, SensorEntity):
         }
 
 
+class DistanceToPerson(DutchBusEntity, SensorEntity):
+    """Distance from the stop to the nearest followed person (rounded), also when nobody is inside the zone."""
+
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_device_class = SensorDeviceClass.DISTANCE
+    _attr_native_unit_of_measurement = UnitOfLength.METERS
+
+    def __init__(self, coordinator: StopCoordinator) -> None:
+        super().__init__(coordinator, "distance_to_person")
+
+    @property
+    def available(self) -> bool:
+        return True
+
+    @property
+    def native_value(self) -> int | None:
+        return self.coordinator.nearest_m
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        c = self.coordinator
+        entity_id = c.nearest_entity
+        state = self.hass.states.get(entity_id) if entity_id else None
+        return {
+            "person": (state.name if state else entity_id),
+            "in_zone": bool(c.nearby),
+            "approaching": c.approaching,
+        }
+
+
 class Departures(MinuteTickerMixin, DutchBusEntity, SensorEntity):
     """State '14:05 (Lijn 74)' / 'Geen bussen' + attribuut ``vertrekken`` (zoals de yaml-sensor)."""
-
-    # niet in de recorder-database bewaren (OVapi-voorwaarden: realtime data niet langer opslaan)
-    _unrecorded_attributes = frozenset({"vertrekken", "berichten"})
 
     def __init__(self, coordinator: StopCoordinator) -> None:
         super().__init__(coordinator, "departures")
@@ -234,11 +273,10 @@ class Departures(MinuteTickerMixin, DutchBusEntity, SensorEntity):
 
 
 class LineDeparture(MinuteTickerMixin, DutchBusEntity, SensorEntity):
-    """Volgende vertrek van één lijn op deze halte (optioneel, aan te zetten onder Configureren → Instellingen)."""
+    """Next departure of one line at this stop (optional, enable under Configure → Settings)."""
 
     _attr_device_class = SensorDeviceClass.TIMESTAMP
     _attr_icon = "mdi:bus"
-    _unrecorded_attributes = frozenset({"volgende", "bestemming"})
 
     def __init__(self, coordinator: StopCoordinator, line: str) -> None:
         super().__init__(coordinator, f"line_{line}")
@@ -274,14 +312,13 @@ class LineDeparture(MinuteTickerMixin, DutchBusEntity, SensorEntity):
 
 
 class StopOnMap(MinuteTickerMixin, DutchBusEntity, SensorEntity):
-    """Halte op de kaart: de latitude/longitude-attributen tekenen de pin; de status is de eerstvolgende bus."""
+    """Stop on the map: the latitude/longitude attributes draw the pin; the state is the next bus."""
 
     _attr_entity_category = EntityCategory.DIAGNOSTIC
-    _unrecorded_attributes = frozenset({"latitude", "longitude"})
 
     def __init__(self, coordinator: StopCoordinator) -> None:
         super().__init__(coordinator, "location")
-        self._attr_name = None  # naam = apparaatnaam (de haltenaam die de gebruiker koos)
+        self._attr_name = None  # name = device name (the stop name the user chose)
 
     @property
     def available(self) -> bool:
@@ -299,21 +336,21 @@ class StopOnMap(MinuteTickerMixin, DutchBusEntity, SensorEntity):
 
     @property
     def entity_picture(self) -> str | None:
-        """Halte-marker op de kaart (uit te zetten in de opties); bij verouderde data valt het doorgestreepte icoon terug."""
+        """Stop marker on the map (can be disabled in the options); with outdated data the struck-through icon is used."""
         if self.coordinator.needs_refresh():
-            return f"{STATIC_URL}/halte_onbekend.png"  # geen, verouderde of lege busgegevens: grijze halte met vraagteken
-        if self.coordinator.config_entry.options.get(CONF_MAP_LOGO, True):
+            return f"{STATIC_URL}/halte_onbekend.png"  # no, outdated or empty bus data: grey stop with question mark
+        if self.coordinator.entry.options.get(CONF_MAP_LOGO, True):
             return f"{STATIC_URL}/halte_marker.png"
         return None
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        loc = self.coordinator.location
+        loc = self.coordinator.marker_location
         return {"latitude": loc[0], "longitude": loc[1]} if loc else {}
 
 
 class FetchedCount(MinuteTickerMixin, DutchBusEntity, SensorEntity):
-    """Aantal vertrektijden dat nog in de toekomst ligt; loopt elke minuut terug en bij 0 heeft de halte geen data meer."""
+    """Number of departure times still in the future; counts down every minute and at 0 the stop has no data left."""
 
     _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_state_class = SensorStateClass.MEASUREMENT
@@ -350,6 +387,36 @@ class LastUpdate(DutchBusEntity, SensorEntity):
     @property
     def native_value(self) -> datetime | None:
         return self.coordinator.data["fetched"] if self.coordinator.data else None
+
+
+class ErrorCount(DutchBusEntity, SensorEntity):
+    """Consecutive errors of this stop; the stop pauses automatic refreshes at the maximum."""
+
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_entity_registry_enabled_default = False
+    _attr_icon = "mdi:alert-circle-outline"
+
+    def __init__(self, coordinator: StopCoordinator) -> None:
+        super().__init__(coordinator, "error_count")
+
+    @property
+    def available(self) -> bool:
+        return True
+
+    @property
+    def native_value(self) -> int:
+        return self.coordinator.consecutive_failures
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        c = self.coordinator
+        return {
+            "paused": c.paused,
+            "max_errors": c.max_errors,
+            "last_error": c.last_error,
+            "api_consecutive_errors": c.api.consecutive_errors,
+            "api_paused_for_s": round(c.api.blocked_for),
+        }
 
 
 class _Metadata(DutchBusEntity, SensorEntity):

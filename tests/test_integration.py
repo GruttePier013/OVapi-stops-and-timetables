@@ -112,6 +112,8 @@ async def test_all_sources_fail_is_unavailable_and_button_retries(hass, aioclien
 async def test_flow_manual_creates_entry(hass, aioclient_mock):
     aioclient_mock.get(URL.format("90100421"), json=passes("90100421"))
     r = await hass.config_entries.flow.async_init(DOMAIN, context={"source": "user"})
+    assert r["type"] is FlowResultType.FORM and r["step_id"] == "user"  # defaults screen
+    r = await hass.config_entries.flow.async_configure(r["flow_id"], {})
     assert r["type"] is FlowResultType.MENU
     r = await hass.config_entries.flow.async_configure(r["flow_id"], {"next_step_id": "manual"})
     aioclient_mock.get(URL.format("999"), json={})
@@ -128,13 +130,38 @@ async def test_flow_manual_creates_entry(hass, aioclient_mock):
     assert stop["lat"] == 52.08 and stop["lon"] == 5.25
 
 
+DEFAULTS = {
+    "default_schedule": "never",
+    "default_radius": 500,
+    "default_refresh_on_approach": True,
+    "default_approach_only": True,
+    "default_zone_interval": "every_5_min",
+    "default_zone_stop_after": "30_min",
+}
+
+
+def settings_input(**over):
+    """Input of the Settings step (sections included)."""
+    defaults = {**DEFAULTS, "apply_existing": False, **over.pop("defaults", {})}
+    protection = {"max_errors": 5, "api_max_errors": 10, "api_spacing": 3, **over.pop("protection", {})}
+    return {
+        "max_departures": 6,
+        "persons": [],
+        "zone_cooldown": 15,
+        "stale_hours": 12,
+        "defaults": defaults,
+        "protection": protection,
+        **over,
+    }
+
+
 async def test_options_settings_and_remove(hass, aioclient_mock):
     aioclient_mock.get(URL.format("90100421"), json=passes("90100421"))
     e = entry([{"tpc_codes": ["90100421"], "name": "K"}])
     await setup(hass, e)
     r = await hass.config_entries.options.async_init(e.entry_id)
     r = await hass.config_entries.options.async_configure(r["flow_id"], {"next_step_id": "settings"})
-    r = await hass.config_entries.options.async_configure(r["flow_id"], {"max_departures": 3})
+    r = await hass.config_entries.options.async_configure(r["flow_id"], settings_input(max_departures=3))
     assert r["type"] is FlowResultType.CREATE_ENTRY
     await hass.async_block_till_done()
     assert e.options["max_departures"] == 3
@@ -225,8 +252,7 @@ async def test_proximity_names_zone_timer_and_refresh(hass, aioclient_mock, free
     assert reg.async_get_entity_id("binary_sensor", DOMAIN, "90100421_nearby") is None  # 'Persoon nabij' bestaat niet meer
     assert float(hass.states.get(num).state) == 500
     assert hass.states.get(who).state == "Geen" and hass.states.get(who).attributes["personen"] == []
-    # uitleg bij de zone-entiteiten
-    assert "2 minuten" in hass.states.get(sw).attributes["uitleg"] and "Straal" in hass.states.get(num).attributes["uitleg"]
+    assert "zone-radius" in hass.states.get(sw).attributes["uitleg"]
     n = aioclient_mock.call_count
 
     freezer.tick(timedelta(minutes=5))
@@ -243,11 +269,14 @@ async def test_proximity_names_zone_timer_and_refresh(hass, aioclient_mock, free
     assert hass.states.get(who).attributes["person_entiteiten"] == ["person.jan"]
     assert aioclient_mock.call_count == n + 1
 
-    # zolang Jan in de zone blijft loopt er een timer van 2 minuten (alleen dan), die ververst
+    # zolang Jan in de zone blijft loopt er een bezoek met een timer (alleen dan)
     coord = hass.config_entries.async_entries(DOMAIN)[0].runtime_data.coordinators["90100421"]
     assert coord._unsub_zone is not None and coord.refresh_on_approach is True
     before = aioclient_mock.call_count
-    await coord._async_zone_refresh(dt_util.utcnow())  # wat de timer elke 2 minuten doet
+    await coord._async_zone_tick(dt_util.utcnow())  # 'alleen bij naderen' staat aan en Jan beweegt niet: geen verversing
+    assert aioclient_mock.call_count == before
+    coord.approach_only = False
+    await coord._async_zone_tick(dt_util.utcnow())  # wat de timer elke X minuten doet
     assert aioclient_mock.call_count == before + 1
     # schakelaar uit: timer weg; weer aan (iemand is nog in de zone): timer terug
     await hass.services.async_call("switch", "turn_off", {"entity_id": sw}, blocking=True)
@@ -258,14 +287,16 @@ async def test_proximity_names_zone_timer_and_refresh(hass, aioclient_mock, free
     hass.states.async_set("person.anna", "not_home", {"latitude": 52.0815, "longitude": 5.2505, "friendly_name": "Anna"})
     await hass.async_block_till_done()
     assert hass.states.get(who).state == "Anna, Jan"
-    # straal verkleinen: 170 m valt er dan buiten, de timer stopt
+    # straal verkleinen: 170 m valt er dan buiten; de timer ververst niet meer
     await hass.services.async_call("number", "set_value", {"entity_id": num, "value": 100}, blocking=True)
     await hass.async_block_till_done()
     assert hass.states.get(who).state == "Geen"
-    assert coord._unsub_zone is None  # niemand meer in de zone: geen tweeminutenverversing
+    calls = aioclient_mock.call_count
+    await coord._async_zone_tick(dt_util.utcnow())
+    assert aioclient_mock.call_count == calls  # niemand meer in de zone: geen verversing
 
 
-async def test_zone_timer_runs_every_two_minutes(hass, aioclient_mock, monkeypatch):
+async def test_zone_timer_default_is_every_five_minutes(hass, aioclient_mock, monkeypatch):
     from datetime import timedelta as td  # noqa: PLC0415
 
     from custom_components.ovapi_bustijden import coordinator as coord_mod  # noqa: PLC0415
@@ -281,7 +312,7 @@ async def test_zone_timer_runs_every_two_minutes(hass, aioclient_mock, monkeypat
     await setup(hass, entry([{"tpc_codes": ["90100421"], "name": "K"}]))
     hass.states.async_set("person.jan", "not_home", {"latitude": 52.0801, "longitude": 5.2501})
     await hass.async_block_till_done()
-    assert seen == [td(minutes=2)]  # één timer, elke 2 minuten
+    assert seen == [td(minutes=5)]  # één timer, standaard elke 5 minuten
 
 
 async def test_old_binary_sensor_is_removed_from_registry(hass, aioclient_mock):
@@ -306,9 +337,11 @@ async def test_combined_tpc_request_single_call_and_messages(hass, aioclient_moc
     assert st.attributes["berichten"] == ["Omleiding door wegwerkzaamheden"]
     assert "latitude" not in st.attributes and len(st.attributes["vertrekken"]) == 4  # 2 bussen x 2 codes
     assert {d["tpc"] for d in st.attributes["vertrekken"]} == {"90000123", "90003330"}
+    from homeassistant.const import MATCH_ALL  # noqa: PLC0415
+
     from custom_components.ovapi_bustijden.sensor import Departures, NextDeparture
-    assert "vertrekken" in Departures._unrecorded_attributes  # niet in de recorder
-    assert "bestemming" in NextDeparture._unrecorded_attributes
+    assert MATCH_ALL in Departures._unrecorded_attributes  # attributen niet in de recorder
+    assert MATCH_ALL in NextDeparture._unrecorded_attributes
 
 
 
@@ -324,7 +357,11 @@ async def test_dutch_names_and_single_location_entity(hass, aioclient_mock):
                      "number.voorbeeldstad_voorbeeldlaan_zone_radius", "switch.voorbeeldstad_voorbeeldlaan_vernieuwen_als_in_zone",
                      "sensor.voorbeeldstad_voorbeeldlaan_lijnen", "sensor.voorbeeldstad_voorbeeldlaan_personen_nabij",
                      "sensor.voorbeeldstad_voorbeeldlaan",
-                     "number.voorbeeldstad_voorbeeldlaan_vernieuwen_in_zone_stoppen_na"):
+                     "select.voorbeeldstad_voorbeeldlaan_vernieuwen_in_zone_stoppen_na",
+                     "select.voorbeeldstad_voorbeeldlaan_vernieuwingsfrequentie_in_zone",
+                     "switch.voorbeeldstad_voorbeeldlaan_alleen_vernieuwen_bij_naderen",
+                     "binary_sensor.voorbeeldstad_voorbeeldlaan_gepauzeerd",
+                     "sensor.voorbeeldstad_voorbeeldlaan_afstand_tot_persoon"):
         assert expected in ids, expected
     # precies één entiteit met een positie => één marker op de kaart, met het OVapi bussen en haltelogo i.p.v. initialen
     with_pos = [x for x in ids.values() if "latitude" in x.attributes]
@@ -457,6 +494,8 @@ async def _advance_to_form(hass, r, phases=None):
 
 async def _open_search(hass):
     r = await hass.config_entries.flow.async_init(DOMAIN, context={"source": "user"})
+    assert r["type"] is FlowResultType.FORM and r["step_id"] == "user"  # defaults screen
+    r = await hass.config_entries.flow.async_configure(r["flow_id"], {})
     return await hass.config_entries.flow.async_configure(r["flow_id"], {"next_step_id": "search"})
 
 
@@ -727,8 +766,8 @@ async def test_stale_data_service_and_zone_stop(hass, aioclient_mock, freezer):
     assert hass.states.get(ids["location"]).state.startswith("Lijn ")
     assert hass.states.get(ids["departures"]).attributes["icon"] == "mdi:bus-clock"
     # standaardwaarden van de nieuwe instellingen
-    num = reg.async_get_entity_id("number", DOMAIN, "90100421_zone_stop_after")
-    assert float(hass.states.get(num).state) == 30
+    sel = reg.async_get_entity_id("select", DOMAIN, "90100421_zone_stop_after")
+    assert hass.states.get(sel).state == "30_min"
     assert hass.states.get(reg.async_get_entity_id("select", DOMAIN, "90100421_refresh_schedule")).state == "never"
     assert hass.states.get(reg.async_get_entity_id("switch", DOMAIN, "90100421_refresh_on_approach")).state == "on"
     # ouder dan 12 uur => 'Data vernieuwen' met doorgestreept icoon, zonder marker-plaatje
@@ -740,7 +779,7 @@ async def test_stale_data_service_and_zone_stop(hass, aioclient_mock, freezer):
         assert st.state == "Data vernieuwen" and st.attributes["icon"] == icon
     assert hass.states.get(ids["location"]).attributes["entity_picture"].endswith("/halte_onbekend.png")
     # service zonder doel vernieuwt alles en haalt de gegevens weer op
-    await hass.services.async_call(DOMAIN, "refresh_stops", {}, blocking=True)
+    await hass.services.async_call(DOMAIN, "refresh", {}, blocking=True)
     assert hass.states.get(ids["departures"]).state != "Data vernieuwen"
     # service met doel: alleen die halte
     n = aioclient_mock.call_count

@@ -1,4 +1,4 @@
-"""Verversen bij nadering aan/uit."""
+"""Switches per stop: refresh in zone (main switch) and approach-only refreshing."""
 from __future__ import annotations
 
 from typing import Any
@@ -9,7 +9,9 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
-from .coordinator import DutchBusConfigEntry
+from .const import APPROACH_MIN_DELTA_M, CONF_DEFAULT_APPROACH_ONLY, CONF_DEFAULT_REFRESH_ON_ZONE
+from .coordinator import DutchBusConfigEntry, StopCoordinator
+from .defaults import get_defaults
 from .parser import distance_m
 from .sensor import DutchBusEntity
 
@@ -17,20 +19,21 @@ from .sensor import DutchBusEntity
 async def async_setup_entry(
     hass: HomeAssistant, entry: DutchBusConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    async_add_entities(RefreshOnApproach(c) for c in entry.runtime_data.coordinators.values())
+    for c in entry.runtime_data.coordinators.values():
+        async_add_entities([RefreshOnApproach(c), ApproachOnly(c)])
 
 
 class RefreshOnApproach(DutchBusEntity, SwitchEntity, RestoreEntity):
-    """Ververs zodra een persoon de zone-radius binnenkomt en daarna op een instelbaar interval zolang iemand in de zone is."""
+    """Main switch for refreshing in the zone: on entry and (optionally) every X minutes while someone is in the zone."""
 
     _attr_entity_category = EntityCategory.CONFIG
 
-    def __init__(self, coordinator) -> None:
+    def __init__(self, coordinator: StopCoordinator) -> None:
         super().__init__(coordinator, "refresh_on_approach")
-        self._attr_is_on = True
+        self._attr_is_on = get_defaults(coordinator.entry.options)[CONF_DEFAULT_REFRESH_ON_ZONE]
 
     def _in_home_zone(self) -> bool:
-        """Ligt de halte binnen de thuiszone van Home Assistant? Dan is 'vernieuwen als in zone' standaard uit."""
+        """Is the stop inside the Home Assistant home zone? Then 'refresh in zone' is off by default."""
         loc = self.coordinator.location
         if loc is None:
             return False
@@ -53,11 +56,10 @@ class RefreshOnApproach(DutchBusEntity, SwitchEntity, RestoreEntity):
         return {
             "uitleg": (
                 "Aan: zodra een gevolgd persoon binnen de zone-radius van deze halte komt, worden de vertrektijden "
-                "direct vernieuwd en daarna op het ingestelde interval (standaard 2 minuten), zolang iemand in de zone blijft. Staat de halte "
-                "in de thuiszone van Home Assistant, dan staat dit standaard uit. Uit: alleen de "
-                "standaard vernieuwingsfrequentie. Gevolgde personen stel je in via Configureren."
+                "direct vernieuwd (daarna volgens de vernieuwingsfrequentie in zone). Staat de halte in de "
+                "thuiszone van Home Assistant, dan staat dit standaard uit. Gevolgde personen stel je in via "
+                "Configureren."
             ),
-            "interval_minuten": round(self.coordinator._zone_interval() / 60, 2),
         }
 
     async def async_added_to_hass(self) -> None:
@@ -66,15 +68,58 @@ class RefreshOnApproach(DutchBusEntity, SwitchEntity, RestoreEntity):
         if last is not None:
             self._attr_is_on = last.state != STATE_OFF
         elif self._in_home_zone():
-            self._attr_is_on = False  # iedereen die thuis is zou de halte steeds 'in de zone' maken
-        self.coordinator.refresh_on_approach = self._attr_is_on
+            self._attr_is_on = False  # everyone at home would make the stop 'in the zone' all the time
+        self.coordinator.refresh_on_approach = bool(self._attr_is_on)
+        self.coordinator.apply_zone_settings()
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         self._attr_is_on = True
         self.coordinator.refresh_on_approach = True
+        self.coordinator.apply_zone_settings()
         self.async_write_ha_state()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         self._attr_is_on = False
         self.coordinator.refresh_on_approach = False
+        self.coordinator.apply_zone_settings()
+        self.async_write_ha_state()
+
+
+class ApproachOnly(DutchBusEntity, SwitchEntity, RestoreEntity):
+    """Interval refreshes in the zone only happen while someone is getting closer to the stop."""
+
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(self, coordinator: StopCoordinator) -> None:
+        super().__init__(coordinator, "approach_only")
+        self._attr_is_on = get_defaults(coordinator.entry.options)[CONF_DEFAULT_APPROACH_ONLY]
+
+    @property
+    def available(self) -> bool:
+        return True
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        return {
+            "uitleg": (
+                "Aan: de vernieuwingen in de zone (na de eerste bij binnenkomst) gebeuren alleen als iemand "
+                f"minstens {APPROACH_MIN_DELTA_M} m dichterbij is gekomen sinds de vorige vernieuwing."
+            ),
+        }
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        last = await self.async_get_last_state()
+        if last is not None:
+            self._attr_is_on = last.state != STATE_OFF
+        self.coordinator.approach_only = bool(self._attr_is_on)
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        self._attr_is_on = True
+        self.coordinator.approach_only = True
+        self.async_write_ha_state()
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        self._attr_is_on = False
+        self.coordinator.approach_only = False
         self.async_write_ha_state()

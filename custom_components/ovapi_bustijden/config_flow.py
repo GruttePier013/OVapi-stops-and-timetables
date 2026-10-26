@@ -3,12 +3,14 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.const import CONF_NAME
 from homeassistant.core import callback
+from homeassistant.data_entry_flow import section
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import selector
 from homeassistant.util import dt as dt_util
 
@@ -16,6 +18,15 @@ from .api import AddressNotFound, get_api
 from .chb import compass_label, compass_name
 from .const import (
     ADDRESS_RADIUS,
+    CONF_API_MAX_ERRORS,
+    CONF_API_SPACING,
+    CONF_APPLY_EXISTING,
+    CONF_DEFAULT_APPROACH_ONLY,
+    CONF_DEFAULT_RADIUS,
+    CONF_DEFAULT_REFRESH_ON_ZONE,
+    CONF_DEFAULT_SCHEDULE,
+    CONF_DEFAULT_ZONE_INTERVAL,
+    CONF_DEFAULT_ZONE_STOP_AFTER,
     CONF_DESTINATIONS,
     CONF_DIRECTION_IN_NAME,
     CONF_EXTRA_LINES,
@@ -23,26 +34,37 @@ from .const import (
     CONF_LINES,
     CONF_LOCATION,
     CONF_MAP_LOGO,
+    CONF_MARKER,
+    CONF_MARKER_RESET,
     CONF_MAX_DEPARTURES,
+    CONF_MAX_ERRORS,
     CONF_MODES,
     CONF_PERSONS,
     CONF_PLACE,
     CONF_REFRESH_NDOV,
+    CONF_SECTION_DEFAULTS,
+    CONF_SECTION_PROTECTION,
     CONF_STALE_HOURS,
     CONF_STOPS,
     CONF_TPC_CODES,
+    CONF_ZONE_COOLDOWN,
     DEFAULT_LINE_SENSORS,
     DEFAULT_MAX_DEPARTURES,
     DEFAULT_MODES,
     DEFAULT_RADIUS,
     DEFAULT_STALE_HOURS,
+    DEFAULT_ZONE_COOLDOWN,
     DOMAIN,
+    MAX_RADIUS,
+    MIN_RADIUS,
     MODES,
     NAME,
     PLACE_RADIUS,
     STREET_RADIUS,
 )
+from .defaults import get_defaults, get_protection
 from .parser import clean_town, distance_m, parse_codes, parse_lines, sort_lines
+from .schedules import SCHEDULES, ZONE_INTERVALS, ZONE_STOP_AFTER
 from .stops import get_stops, stop_key
 
 _LOGGER = logging.getLogger(__name__)
@@ -51,8 +73,6 @@ CONF_STOP = "stop"
 CONF_REMOVE = "remove"
 
 
-MIN_RADIUS, MAX_RADIUS = 50, 5000
-
 
 MODE_LABELS = {"bus": "Bus", "tram": "Tram", "metro": "Metro", "boat": "Veerboot"}
 
@@ -60,14 +80,14 @@ MODE_LABELS = {"bus": "Bus", "tram": "Tram", "metro": "Metro", "boat": "Veerboot
 def _search_schema() -> vol.Schema:
     return vol.Schema(
         {
-            # 0. Plaatsnaam: de kaart springt naar het centrum van die plaats (na Enter/Opslaan van dit veld)
+            # 0. Place name: the map jumps to the centre of that place (after Enter/Save of this field)
             vol.Optional(CONF_PLACE): str,
-            # 1. De kaartkiezer staat bovenaan: een pin met een sleepbare zoekcirkel. Onder de kaart toont
-            #    Home Assistant zelf de velden breedte-/lengtegraad en straal; die lopen mee met de pin.
+            # 1. The map picker is at the top: a pin with a draggable search circle. Below the map
+            #    Home Assistant itself shows the latitude/longitude and radius fields; they follow the pin.
             vol.Required(CONF_LOCATION): selector.LocationSelector(
                 selector.LocationSelectorConfig(radius=True, icon="mdi:bus-stop")
             ),
-            # 2. Daaronder optioneel een adres of coördinaten (die gaan voor de pin).
+            # 2. Below that an optional address or coordinates (these take precedence over the pin).
             # 3. Welke vervoerstypen (standaard alleen bus)
             vol.Optional(CONF_MODES, default=DEFAULT_MODES): _select(
                 [{"label": label, "value": mode} for mode, label in MODE_LABELS.items()], multiple=True
@@ -82,15 +102,78 @@ def _select(
     listing = multiple if checkboxes is None else checkboxes
     return selector.SelectSelector(
         selector.SelectSelectorConfig(
-            options=options,
+            options=cast("list[selector.SelectOptionDict]", options),
             multiple=multiple,
             mode=selector.SelectSelectorMode.LIST if listing else selector.SelectSelectorMode.DROPDOWN,
         )
     )
 
 
+def _translated_select(options: list[str], key: str) -> selector.SelectSelector:
+    return selector.SelectSelector(
+        selector.SelectSelectorConfig(options=options, mode=selector.SelectSelectorMode.DROPDOWN, translation_key=key)
+    )
+
+
+def _defaults_fields(values: dict[str, Any]) -> dict[Any, Any]:
+    """The single defaults screen (same fields at install time and in Settings)."""
+    d = get_defaults(values)
+    return {
+        vol.Required(CONF_DEFAULT_SCHEDULE, default=d[CONF_DEFAULT_SCHEDULE]): _translated_select(
+            list(SCHEDULES), "refresh_schedule"
+        ),
+        vol.Required(CONF_DEFAULT_RADIUS, default=d[CONF_DEFAULT_RADIUS]): selector.NumberSelector(
+            selector.NumberSelectorConfig(
+                min=MIN_RADIUS, max=MAX_RADIUS, step=50, unit_of_measurement="m", mode=selector.NumberSelectorMode.BOX
+            )
+        ),
+        vol.Required(CONF_DEFAULT_REFRESH_ON_ZONE, default=d[CONF_DEFAULT_REFRESH_ON_ZONE]): selector.BooleanSelector(),
+        vol.Required(CONF_DEFAULT_APPROACH_ONLY, default=d[CONF_DEFAULT_APPROACH_ONLY]): selector.BooleanSelector(),
+        vol.Required(CONF_DEFAULT_ZONE_INTERVAL, default=d[CONF_DEFAULT_ZONE_INTERVAL]): _translated_select(
+            list(ZONE_INTERVALS), "zone_refresh"
+        ),
+        vol.Required(CONF_DEFAULT_ZONE_STOP_AFTER, default=d[CONF_DEFAULT_ZONE_STOP_AFTER]): _translated_select(
+            list(ZONE_STOP_AFTER), "zone_stop_after"
+        ),
+    }
+
+
+def _protection_fields(values: dict[str, Any]) -> dict[Any, Any]:
+    """Error protection: pause a stop / the API after repeated errors, spacing between API calls."""
+    p = get_protection(values)
+
+    def number(minimum: float, maximum: float, step: float, unit: str | None = None) -> selector.NumberSelector:
+        return selector.NumberSelector(
+            selector.NumberSelectorConfig(
+                min=minimum,
+                max=maximum,
+                step=step,
+                mode=selector.NumberSelectorMode.BOX,
+                **({"unit_of_measurement": unit} if unit else {}),
+            )
+        )
+
+    return {
+        vol.Required(CONF_MAX_ERRORS, default=p[CONF_MAX_ERRORS]): number(1, 50, 1),
+        vol.Required(CONF_API_MAX_ERRORS, default=p[CONF_API_MAX_ERRORS]): number(1, 100, 1),
+        vol.Required(CONF_API_SPACING, default=p[CONF_API_SPACING]): number(0, 60, 0.5, "s"),
+    }
+
+
+def _clean_defaults(values: dict[str, Any]) -> dict[str, Any]:
+    keys = (
+        CONF_DEFAULT_SCHEDULE,
+        CONF_DEFAULT_RADIUS,
+        CONF_DEFAULT_REFRESH_ON_ZONE,
+        CONF_DEFAULT_APPROACH_ONLY,
+        CONF_DEFAULT_ZONE_INTERVAL,
+        CONF_DEFAULT_ZONE_STOP_AFTER,
+    )
+    return get_defaults({k: values[k] for k in keys if k in values})
+
+
 def _display_name(info: dict[str, Any] | None, fallback: str) -> str:
-    """'Voorbeeldstad, Voorbeeldlaan' (de plaats niet dubbel als de naam er al mee begint)."""
+    """'Voorbeeldstad, Voorbeeldlaan' (the place is not repeated if the name already starts with it)."""
     if not info or not info.get("name"):
         return fallback
     name, town = info["name"], clean_town(info.get("town"))
@@ -120,7 +203,13 @@ def _hours_selector() -> selector.NumberSelector:
     )
 
 
-class StopFlowMixin:
+if TYPE_CHECKING:  # the mixins run inside a ConfigFlow/OptionsFlow; tell the type checker about hass, async_show_form, ...
+    _FlowBase = config_entries.ConfigFlow
+else:
+    _FlowBase = object
+
+
+class StopFlowMixin(_FlowBase):
     """Gedeelde stappen voor config- en optionsflow."""
 
     _task: asyncio.Task | None = None
@@ -149,7 +238,7 @@ class StopFlowMixin:
             self._search_input = dict(user_input)
             place = (user_input.get(CONF_PLACE) or "").strip()
             if place and place.casefold() != self._last_place:
-                # Nieuwe plaatsnaam: de kaart op het centrum van de plaats zetten en ruim uitzoomen; nog niet zoeken
+                # New place name: put the map on the centre of the place and zoom out wide; do not search yet
                 try:
                     lat, lon, _, kind = await get_api(self.hass).async_locate(place)
                 except AddressNotFound:
@@ -159,7 +248,7 @@ class StopFlowMixin:
                     errors["base"] = "cannot_connect"
                 else:
                     self._last_place = place.casefold()
-                    # alleen een plaats: ruim uitzoomen op de bebouwde kom; straat of adres: dichterbij
+                    # place only: zoom out wide on the built-up area; street or address: closer
                     radius = {"woonplaats": PLACE_RADIUS, "weg": STREET_RADIUS}.get(kind, ADDRESS_RADIUS)
                     self._search_input = {
                         **user_input,
@@ -178,8 +267,8 @@ class StopFlowMixin:
                 errors["base"] = "cannot_connect"
             else:
                 self._location = (lat, lon)
-                radius = (location or {}).get("radius") if isinstance(location, dict) else None
-                self._radius = int(min(max(float(radius or DEFAULT_RADIUS), MIN_RADIUS), MAX_RADIUS))
+                chosen = location.get("radius") if isinstance(location, dict) else None
+                self._radius = int(min(max(float(chosen or DEFAULT_RADIUS), MIN_RADIUS), MAX_RADIUS))
                 return await self.async_step_download()
         return self._show_search(errors)
 
@@ -194,9 +283,9 @@ class StopFlowMixin:
         schema = self.add_suggested_values_to_schema(_search_schema(), suggested)  # type: ignore[attr-defined]
         return self.async_show_form(step_id="search", data_schema=schema, errors=errors)  # type: ignore[attr-defined]
 
-    # ------------------------------------------------------------ haltebestand (3 fases, elk met een % -voortgangsring)
+    # ------------------------------------------------------------ stop file (3 phases, each with a % progress ring)
     def _set_progress(self, fraction: float) -> None:
-        """Voortgangsring (0–100 %) bijwerken, als de Home Assistant-versie dat ondersteunt."""
+        """Update the progress ring (0-100 %) if the Home Assistant version supports it."""
         fraction = round(min(max(fraction, 0.0), 1.0), 2)
         if fraction - self._last_progress < 0.01 and fraction < 1.0:
             return
@@ -206,7 +295,7 @@ class StopFlowMixin:
             update(fraction)
 
     async def _async_phase(self, step_id: str, factory, next_step, fail_step: str = "load_failed"):
-        """Voer één fase uit als achtergrondtaak met voortgangsring; daarna door naar ``next_step``."""
+        """Run one phase as a background task with a progress ring; then continue to ``next_step``."""
         direct = False
         if self._task is None:
             self._last_progress = -1.0
@@ -231,20 +320,20 @@ class StopFlowMixin:
         return self.async_show_progress_done(next_step_id=next_step)  # type: ignore[attr-defined]
 
     async def async_step_download(self, user_input: dict[str, Any] | None = None):
-        """Fase 1: haltebestand van NDOV Loket downloaden (alleen als de index ontbreekt of verouderd is)."""
+        """Phase 1: download the stop file from NDOV Loket (only if the index is missing or outdated)."""
         api = get_api(self.hass)
         if self._task is None:
             self._chb_state = await api.async_chb_state()
             if self._chb_state == "fresh" and not self._force_download:
                 return await self.async_step_load_stops()
-        # Mislukt het downloaden maar is er een (oudere) index, dan gaan we daarmee verder.
+        # If the download fails but an (older) index exists, continue with that.
         fail = "load_stops" if self._chb_state != "missing" else "load_failed"
         return await self._async_phase(
             "download", lambda: api.async_download_chb(self._set_progress), "unpack", fail
         )
 
     async def async_step_unpack(self, user_input: dict[str, Any] | None = None):
-        """Fase 2: ±300 MB XML gestreamd uitpakken en omzetten naar een compacte index."""
+        """Phase 2: stream-unpack ~300 MB XML and convert it to a compact index."""
         api = get_api(self.hass)
         self._force_download = False
         return await self._async_phase(
@@ -252,7 +341,7 @@ class StopFlowMixin:
         )
 
     async def _async_prepare(self) -> None:
-        """Fase 3: quays in de zone zoeken en live bij OVapi controleren."""
+        """Phase 3: find quays in the zone and check them live against OVapi."""
         api = get_api(self.hass)
         lat, lon = self._location
         self._candidates, self._skipped = await api.async_candidates(
@@ -286,7 +375,7 @@ class StopFlowMixin:
         for i, c in enumerate(self._candidates, start=1):
             title = c["name"] + (f" ({c['town']})" if len(towns) > 1 and c.get("town") else "")
             compass = compass_label(c.get("bearing"))
-            # label van de checkbox: halte, TPC, afstand en windrichting ...
+            # label of the checkbox: stop, TPC, distance and heading ...
             placeholders[f"stop_{i}_label"] = " · ".join(
                 part
                 for part in (
@@ -319,7 +408,7 @@ class StopFlowMixin:
         )
 
     async def async_step_extra_options(self, user_input: dict[str, Any] | None = None):
-        """Aparte stap na de haltekeuze: richting in de naam, timeout verouderde data en het NDOV-bestand."""
+        """Separate step after the stop choice: heading in the name, stale-data timeout and the NDOV file."""
         if user_input is not None:
             if user_input.get(CONF_REFRESH_NDOV):
                 # Terug naar stap 1: haltebestand opnieuw downloaden, uitpakken en dezelfde zone opnieuw doorzoeken.
@@ -327,7 +416,7 @@ class StopFlowMixin:
                 return await self.async_step_download()
             self._stale_hours = int(user_input.get(CONF_STALE_HOURS, DEFAULT_STALE_HOURS))
             with_direction = bool(user_input.get(CONF_DIRECTION_IN_NAME))
-            # Elke aangevinkte richting wordt een eigen apparaat.
+            # Every ticked direction becomes its own device.
             self._queue = [self._pending_from(self._candidates[i], with_direction) for i in self._picked]
             self._done = []
             names = [p["default_name"] for p in self._queue]
@@ -342,7 +431,7 @@ class StopFlowMixin:
             fields[vol.Optional(CONF_STALE_HOURS, default=DEFAULT_STALE_HOURS)] = _hours_selector()
         fields[vol.Optional(CONF_REFRESH_NDOV, default=False)] = bool
         info = await get_api(self.hass).async_chb_info()
-        # Voor het label van het vinkje: ouderdom van het NDOV-bestand ("72 dagen oud, bestand van 2026-08-12")
+        # For the checkbox label: age of the NDOV file ("72 dagen oud, bestand van 2026-08-12")
         placeholders = {
             "ndov_days": str(info["file_age_days"]) if info else "?",
             "ndov_date": (info["source_date"] or info["built"] or "onbekend") if info else "onbekend",
@@ -352,11 +441,11 @@ class StopFlowMixin:
         )
 
     def _home_distance(self, c: dict[str, Any]) -> float:
-        """Afstand (m, hemelsbreed) van de halte tot de thuislocatie van Home Assistant."""
+        """Distance (m, as the crow flies) from the stop to the Home Assistant home location."""
         return distance_m(c["lat"], c["lon"], self.hass.config.latitude, self.hass.config.longitude)
 
     def _home_distance_text(self, c: dict[str, Any]) -> str:
-        """'0,7 km lopen van huis' (onder 2 km) of '50,6 km van huis'; altijd één decimaal."""
+        """'0,7 km lopen van huis' (under 2 km) or '50,6 km van huis'; always one decimal."""
         meters = self._home_distance(c)
         km = f"{meters / 1000:.1f}".replace(".", ",")
         return f"{km} km lopen van huis" if meters < 2000 else f"{km} km van huis"
@@ -375,7 +464,7 @@ class StopFlowMixin:
         }
 
     async def _async_line_options(self, codes: list[str], current: list[str]) -> dict[str, str]:
-        """Lijnen die nu op de halte voorkomen (live) + de al gekozen lijnen."""
+        """Lines currently at the stop (live) + the lines already chosen."""
         try:
             live = await get_api(self.hass).async_line_options(codes, dt_util.DEFAULT_TIME_ZONE)
         except Exception:  # noqa: BLE001
@@ -432,7 +521,7 @@ class StopFlowMixin:
                 if any(infos[c] is None for c in codes):
                     errors["base"] = "tpc_not_found"
                 else:
-                    known = [infos[c] for c in codes if infos[c]["lat"] is not None]
+                    known = [info for c in codes if (info := infos[c]) is not None and info["lat"] is not None]
                     pending: dict[str, Any] = {
                         "tpc_codes": codes,
                         "default_name": _display_name(infos[codes[0]], f"Halte {codes[0]}"),
@@ -450,7 +539,23 @@ class StopFlowMixin:
         )
 
 
-class EditStopsMixin:
+def _marker_override(current: dict[str, Any], user_input: dict[str, Any]) -> dict[str, float] | None:
+    """New map-marker override: None when reset or unchanged from the real stop position."""
+    if user_input.get(CONF_MARKER_RESET):
+        return None
+    picked = user_input.get(CONF_MARKER)
+    if not isinstance(picked, dict):
+        return current.get("marker")
+    lat, lon = float(picked["latitude"]), float(picked["longitude"])
+    base = current.get("marker") or {"lat": current.get("lat"), "lon": current.get("lon")}
+    if base.get("lat") is not None and abs(base["lat"] - lat) < 1e-7 and abs(base["lon"] - lon) < 1e-7:
+        return current.get("marker")  # not moved
+    if current.get("lat") is not None and abs(current["lat"] - lat) < 1e-7 and abs(current["lon"] - lon) < 1e-7:
+        return None  # moved back onto the stop
+    return {"lat": lat, "lon": lon}
+
+
+class EditStopsMixin(StopFlowMixin):
     """Bestaande haltes bewerken: naam, TPC-codes, lijnen en bestemmingen (opties en herconfiguratie)."""
 
     _edit_key: str
@@ -494,6 +599,7 @@ class EditStopsMixin:
                 else:
                     updated = {
                         **current,
+                        "marker": _marker_override(current, user_input),
                         "name": (user_input.get(CONF_NAME) or "").strip() or current["name"],
                         "tpc_codes": codes,
                         "lines": _combine_lines(user_input.get(CONF_LINES), user_input.get(CONF_EXTRA_LINES)),
@@ -514,6 +620,12 @@ class EditStopsMixin:
             )
         fields[vol.Optional(CONF_EXTRA_LINES, default="")] = str
         fields[vol.Optional(CONF_DESTINATIONS, default=", ".join(current.get("destinations", [])))] = str
+        shown = current.get("marker") or ({"lat": current.get("lat"), "lon": current.get("lon")})
+        if shown.get("lat") is not None and shown.get("lon") is not None:
+            fields[
+                vol.Optional(CONF_MARKER, default={"latitude": shown["lat"], "longitude": shown["lon"]})
+            ] = selector.LocationSelector(selector.LocationSelectorConfig(radius=False, icon="mdi:bus-stop"))
+            fields[vol.Optional(CONF_MARKER_RESET, default=False)] = bool
         return self.async_show_form(step_id="edit_details", data_schema=vol.Schema(fields), errors=errors)
 
     # ------------------------------------------------------------ verwijderen
@@ -521,10 +633,19 @@ class EditStopsMixin:
 
 class DutchBusConfigFlow(EditStopsMixin, StopFlowMixin, config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
-    ask_stale_hours = True  # alleen bij de eerste installatie; daarna via Configureren → Instellingen
+    ask_stale_hours = True  # only on first install; afterwards via Configure → Settings
+
+    _defaults: dict[str, Any] = {}  # noqa: RUF012
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None):
-        return self.async_show_menu(step_id="user", menu_options=["search", "manual"])
+        """Step 1: defaults for refreshing and the zone (one screen; changeable later in Settings)."""
+        if user_input is not None:
+            self._defaults = _clean_defaults(user_input)
+            return await self.async_step_menu()
+        return self.async_show_form(step_id="user", data_schema=vol.Schema(_defaults_fields(self._defaults)))
+
+    async def async_step_menu(self, user_input: dict[str, Any] | None = None):
+        return self.async_show_menu(step_id="menu", menu_options=["search", "manual"])
 
     async def _async_finish_stops(self, stops: list[dict[str, Any]]):
         await self.async_set_unique_id(DOMAIN)
@@ -532,7 +653,10 @@ class DutchBusConfigFlow(EditStopsMixin, StopFlowMixin, config_entries.ConfigFlo
         return self.async_create_entry(
             title=NAME,
             data={CONF_STOPS: stops},
-            options={CONF_STALE_HOURS: getattr(self, "_stale_hours", DEFAULT_STALE_HOURS)},
+            options={
+                **(get_defaults(self._defaults) if self._defaults else {}),
+                CONF_STALE_HOURS: getattr(self, "_stale_hours", DEFAULT_STALE_HOURS),
+            },
         )
 
     # ------------------------------------------------------------ herconfiguratie (Opnieuw configureren)
@@ -541,7 +665,7 @@ class DutchBusConfigFlow(EditStopsMixin, StopFlowMixin, config_entries.ConfigFlo
 
     def _save_stops(self, stops: list[dict[str, Any]]):
         entry = self._get_reconfigure_entry()
-        # de update-listener van de integratie laadt de entry daarna zelf opnieuw
+        # the integration's update listener reloads the entry afterwards
         self.hass.config_entries.async_update_entry(entry, options={**entry.options, CONF_STOPS: stops})
         return self.async_abort(reason="reconfigure_successful")
 
@@ -593,39 +717,87 @@ class DutchBusOptionsFlow(EditStopsMixin, StopFlowMixin, config_entries.OptionsF
             ),
         )
 
-    # ------------------------------------------------------------ instellingen
+    # ------------------------------------------------------------ settings
+    def _settings_schema(self, opts: dict[str, Any]) -> vol.Schema:
+        return vol.Schema(
+            {
+                vol.Required(
+                    CONF_MAX_DEPARTURES, default=opts.get(CONF_MAX_DEPARTURES, DEFAULT_MAX_DEPARTURES)
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(min=1, max=15, step=1, mode=selector.NumberSelectorMode.BOX)
+                ),
+                vol.Optional(CONF_PERSONS, default=opts.get(CONF_PERSONS, [])): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="person", multiple=True)
+                ),
+                vol.Required(
+                    CONF_ZONE_COOLDOWN, default=opts.get(CONF_ZONE_COOLDOWN, DEFAULT_ZONE_COOLDOWN)
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(
+                        min=1, max=240, step=1, unit_of_measurement="min", mode=selector.NumberSelectorMode.BOX
+                    )
+                ),
+                vol.Required(CONF_STALE_HOURS, default=opts.get(CONF_STALE_HOURS, DEFAULT_STALE_HOURS)): _hours_selector(),
+                vol.Optional(CONF_LINE_SENSORS, default=opts.get(CONF_LINE_SENSORS, DEFAULT_LINE_SENSORS)): bool,
+                vol.Optional(CONF_MAP_LOGO, default=opts.get(CONF_MAP_LOGO, True)): bool,
+                vol.Required(CONF_SECTION_DEFAULTS): section(
+                    vol.Schema(
+                        {
+                            **_defaults_fields(opts),
+                            vol.Required(CONF_APPLY_EXISTING, default=False): selector.BooleanSelector(),
+                        }
+                    ),
+                    {"collapsed": False},
+                ),
+                vol.Required(CONF_SECTION_PROTECTION): section(
+                    vol.Schema(_protection_fields(opts)),
+                    {"collapsed": True},
+                ),
+            }
+        )
+
+    async def _async_apply_defaults_to_existing(self, d: dict[str, Any]) -> None:
+        """Apply the defaults to the existing stops (via the services of their entities)."""
+        ent_reg = er.async_get(self.hass)
+        on = d[CONF_DEFAULT_REFRESH_ON_ZONE]
+        actions: tuple[tuple[str, str, str, dict[str, Any]], ...] = (
+            ("select", "refresh_schedule", "select_option", {"option": d[CONF_DEFAULT_SCHEDULE]}),
+            ("select", "zone_refresh", "select_option", {"option": d[CONF_DEFAULT_ZONE_INTERVAL]}),
+            ("select", "zone_stop_after", "select_option", {"option": d[CONF_DEFAULT_ZONE_STOP_AFTER]}),
+            ("number", "proximity_radius", "set_value", {"value": d[CONF_DEFAULT_RADIUS]}),
+            ("switch", "refresh_on_approach", "turn_on" if on else "turn_off", {}),
+            ("switch", "approach_only", "turn_on" if d[CONF_DEFAULT_APPROACH_ONLY] else "turn_off", {}),
+        )
+        for stop in self._stops():
+            for platform, key, service, data in actions:
+                entity_id = ent_reg.async_get_entity_id(platform, DOMAIN, f"{stop_key(stop)}_{key}")
+                if not entity_id:
+                    continue
+                try:
+                    await self.hass.services.async_call(
+                        platform, service, {"entity_id": entity_id, **data}, blocking=True
+                    )
+                except Exception:  # noqa: BLE001
+                    _LOGGER.debug("Applying the default to %s failed", entity_id, exc_info=True)
+
     async def async_step_settings(self, user_input: dict[str, Any] | None = None):
-        opts = self.config_entry.options
+        opts = dict(self.config_entry.options)
         if user_input is not None:
+            defaults_in = dict(user_input.get(CONF_SECTION_DEFAULTS, {}))
+            apply = bool(defaults_in.pop(CONF_APPLY_EXISTING, False))
+            cleaned = _clean_defaults(defaults_in)
+            protection = get_protection(dict(user_input.get(CONF_SECTION_PROTECTION, {})))
+            if apply:
+                await self._async_apply_defaults_to_existing(cleaned)
             return self._save(
+                **cleaned,
+                **protection,
                 **{
                     CONF_MAX_DEPARTURES: int(user_input[CONF_MAX_DEPARTURES]),
                     CONF_PERSONS: list(user_input.get(CONF_PERSONS, [])),
+                    CONF_ZONE_COOLDOWN: int(user_input.get(CONF_ZONE_COOLDOWN, DEFAULT_ZONE_COOLDOWN)),
                     CONF_MAP_LOGO: bool(user_input.get(CONF_MAP_LOGO, True)),
                     CONF_STALE_HOURS: int(user_input[CONF_STALE_HOURS]),
                     CONF_LINE_SENSORS: bool(user_input.get(CONF_LINE_SENSORS, DEFAULT_LINE_SENSORS)),
-                }
+                },
             )
-        return self.async_show_form(
-            step_id="settings",
-            data_schema=vol.Schema(
-                {
-                    vol.Required(
-                        CONF_MAX_DEPARTURES,
-                        default=opts.get(CONF_MAX_DEPARTURES, DEFAULT_MAX_DEPARTURES),
-                    ): selector.NumberSelector(
-                        selector.NumberSelectorConfig(
-                            min=1, max=15, step=1, mode=selector.NumberSelectorMode.BOX
-                        )
-                    ),
-                    vol.Optional(
-                        CONF_PERSONS, default=opts.get(CONF_PERSONS, [])
-                    ): selector.EntitySelector(
-                        selector.EntitySelectorConfig(domain="person", multiple=True)
-                    ),
-                    vol.Required(CONF_STALE_HOURS, default=opts.get(CONF_STALE_HOURS, DEFAULT_STALE_HOURS)): _hours_selector(),
-                    vol.Optional(CONF_LINE_SENSORS, default=opts.get(CONF_LINE_SENSORS, DEFAULT_LINE_SENSORS)): bool,
-                    vol.Optional(CONF_MAP_LOGO, default=opts.get(CONF_MAP_LOGO, True)): bool,
-                }
-            ),
-        )
+        return self.async_show_form(step_id="settings", data_schema=self._settings_schema(opts))

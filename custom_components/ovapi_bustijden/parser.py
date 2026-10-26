@@ -1,15 +1,15 @@
 """Pure helpers: parse OVapi payloads and build the departure view.
 
-Deze module importeert bewust niets uit Home Assistant, zodat de logica
-los te testen is. De regels komen uit de bewezen template-sensoren
+This module deliberately imports nothing from Home Assistant so the logic
+can be tested in isolation. The rules come from the proven template sensors
 (ovapi_bushalte_sensoren.yaml):
 
-* OVapi levert lokale tijden zonder tijdzone ("2026-10-21T14:05:00").
-* Alleen vertrektijden tellen (``ExpectedDepartureTime``); passes zonder
-  vertrektijd (eindhalte, alleen aankomst) worden genegeerd.
-* ``TripStopStatus == CANCEL`` wordt niet getoond.
-* Een bus blijft 30 seconden na vertrek nog zichtbaar.
-* Lijnfilter vergelijkt lijnnummers als tekst.
+* OVapi delivers local times without a timezone ("2026-10-21T14:05:00").
+* Only departure times count (``ExpectedDepartureTime``); passes without a
+  departure time (terminus, arrival only) are ignored.
+* ``TripStopStatus == CANCEL`` is not shown.
+* A bus stays visible for 30 seconds after departure.
+* The line filter compares line numbers as text.
 """
 from __future__ import annotations
 
@@ -81,7 +81,7 @@ _NO_TOWN = {"", "unknown", "onbekend", "null", "none", "n/a", "-"}
 
 
 def clean_town(value: Any) -> str:
-    """Plaatsnaam, of '' als OVapi/NDOV een placeholder geeft (bijv. 'unknown')."""
+    """Place name, or '' if OVapi/NDOV gives a placeholder (e.g. 'unknown')."""
     text = str(value).strip() if value is not None else ""
     return "" if text.casefold() in _NO_TOWN else text
 
@@ -91,7 +91,10 @@ def describe_tpc(code: str, payload: Any) -> dict[str, Any] | None:
     obj = payload.get(code) if isinstance(payload, dict) else None
     if not isinstance(obj, dict):
         return None
-    stop = obj.get("Stop") if isinstance(obj.get("Stop"), dict) else {}
+    raw_stop = obj.get("Stop")
+    stop: dict[str, Any] = raw_stop if isinstance(raw_stop, dict) else {}
+    lat: float | None
+    lon: float | None
     try:
         lat = float(stop["Latitude"])
         lon = float(stop["Longitude"])
@@ -183,7 +186,7 @@ def build_view(
 
 
 def summarize(view: list[dict[str, Any]]) -> str:
-    """'14:05 (Lijn 74)' of 'Geen bussen' (zelfde als de yaml-sensor)."""
+    """'14:05 (Lijn 74)' or 'Geen bussen' (same as the YAML sensor)."""
     if not view:
         return NO_BUSES
     return f"{view[0]['tijd']} (Lijn {view[0]['lijn']})"
@@ -193,7 +196,7 @@ STALE_TEXT = "Data vernieuwen"
 
 
 def next_departure_text(view: list[dict[str, Any]]) -> str:
-    """'Lijn 74 om 16:01 (+2 min)' of 'Geen bussen'; de vertraging staat er alleen bij als die er is."""
+    """'Lijn 74 om 16:01 (+2 min)' or 'Geen bussen'; the delay is only shown when there is one."""
     if not view:
         return NO_BUSES
     d = view[0]
@@ -203,9 +206,9 @@ def next_departure_text(view: list[dict[str, Any]]) -> str:
 
 
 def direction_summary(view: list[dict[str, Any]], max_items: int = 3) -> str:
-    """Eerstvolgende bus per lijn+bestemming: '74 → Station 14:07, 34 → Voorbeeldstad 14:20'.
+    """Next bus per line+destination: '74 → Station 14:07, 34 → Voorbeeldstad 14:20'.
 
-    Zo zie je in de configflow welke richting een halte (TPC-code) heeft.
+    This shows in the config flow which direction a stop (TPC code) has.
     """
     seen: set[tuple[str, str]] = set()
     parts: list[str] = []
@@ -221,14 +224,14 @@ def direction_summary(view: list[dict[str, Any]], max_items: int = 3) -> str:
 
 
 def count_passes(payload: Any, tpc: str) -> int:
-    """Aantal passes in het OVapi-antwoord (voor filtering)."""
+    """Number of passes in the OVapi response (for filtering)."""
     obj = payload.get(tpc) if isinstance(payload, dict) else None
     passes = obj.get("Passes") if isinstance(obj, dict) else None
     return len(passes) if isinstance(passes, dict) else 0
 
 
 def parse_messages(payload: Any, tpc: str, limit: int = 5) -> list[str]:
-    """Reizigersberichten (``GeneralMessages``) van een timing point, ontdubbeld."""
+    """Passenger messages (``GeneralMessages``) of a timing point, de-duplicated."""
     obj = payload.get(tpc) if isinstance(payload, dict) else None
     msgs = obj.get("GeneralMessages") if isinstance(obj, dict) else None
     out: list[str] = []
@@ -241,7 +244,7 @@ def parse_messages(payload: Any, tpc: str, limit: int = 5) -> list[str]:
 
 
 def line_options(departures: Iterable[dict[str, Any]]) -> dict[str, str]:
-    """Lijnen die nu op de halte voorkomen: {'74': '74 → Noord'} (eerste bestemming)."""
+    """Lines currently at the stop: {'74': '74 → Noord'} (first destination)."""
     out: dict[str, str] = {}
     for d in sorted(departures, key=lambda x: x["expected"]):
         if d["line"] and d["line"] not in out:
@@ -272,10 +275,10 @@ def parse_coordinates(text: str | None) -> tuple[float, float] | None:
 
 
 def merged_lines(view: list[dict[str, Any]], max_lines: int = 6, max_destinations: int = 3) -> list[dict[str, Any]]:
-    """Eerstvolgende bus per lijn (op volgorde van vertrek), met alle bestemmingen van die lijn samengevoegd.
+    """Next bus per line (in departure order), with all destinations of that line merged.
 
     ``[{"lijn": "34", "bestemmingen": ["Voorbeeldstad Centrum", "Station Zuid"], "tijd": "09:03"}, ...]``:
-    een richting kan meerdere eindbestemmingen hebben (kortere routes); die horen bij één apparaat.
+    a direction can have several final destinations (shorter routes); they belong to one device.
     """
     per_line: dict[str, dict[str, Any]] = {}
     for d in view:
@@ -303,7 +306,7 @@ def sorted_lines(lines: Iterable[str]) -> list[str]:
 
 
 def main_destination(view: list[dict[str, Any]]) -> str:
-    """Meest voorkomende bestemming in de komende vertrekken (bij gelijkstand de eerste)."""
+    """Most common destination in the upcoming departures (the first one on a tie)."""
     counts: dict[str, int] = {}
     for d in view:
         if d["bestemming"]:

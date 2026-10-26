@@ -9,7 +9,9 @@ async def test_zone_timer_really_refreshes_in_real_time(hass, aioclient_mock, mo
     aioclient_mock.get(URL.format("90100421"), json=passes("90100421"))
     e = entry([{"tpc_codes": ["90100421"], "name": "K"}])
     await setup(hass, e)
-    e.runtime_data.coordinators["90100421"].zone_interval_s = 0.2
+    coordinator = e.runtime_data.coordinators["90100421"]
+    coordinator.zone_interval_min = 0.2 / 60  # 0.2 s
+    coordinator.approach_only = False  # refresh at every tick while someone is in the zone
     hass.states.async_set("person.jan", "not_home", {"latitude": 52.0801, "longitude": 5.2501})
     await hass.async_block_till_done()
     start = aioclient_mock.call_count

@@ -15,3 +15,8 @@ known-first-party = ["custom_components"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.13"
+ignore_missing_imports = true
+files = ["custom_components"]

@@ -1,83 +1,134 @@
-"""OVapi bussen en halteinformatie: vertrektijden van bussen via OVapi."""
+"""OVapi bussen en halteinformatie: departure times of buses (and trams, metro, ferries) via OVapi."""
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 from datetime import timedelta
 from pathlib import Path
 
+import voluptuous as vol
+from homeassistant.components.http import StaticPathConfig
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
+from homeassistant.helpers import restore_state
 from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.helpers.target import TargetSelection, async_extract_referenced_entity_ids
 from homeassistant.helpers.typing import ConfigType
 
 from .api import get_api
 from .const import (
+    CONF_API_MAX_ERRORS,
+    CONF_API_SPACING,
     CONF_LINE_SENSORS,
     CONF_MAX_DEPARTURES,
     CONF_PERSONS,
+    CONF_STOPS,
     DEFAULT_LINE_SENSORS,
     DEFAULT_MAX_DEPARTURES,
     DOMAIN,
     FIRST_REFRESH_TIMEOUT,
     NDOV_OUTDATED_DAYS,
     PLATFORMS,
+    SERVICE_REFRESH,
     SERVICE_REFRESH_STOPS,
     STATIC_URL,
 )
-from .coordinator import DutchBusConfigEntry, DutchBusData, StopCoordinator
+from .coordinator import DutchBusConfigEntry, DutchBusData, StopCoordinator, issue_id
+from .defaults import get_protection
 from .proximity import ProximityTracker
 from .stops import get_stops, stop_key
 
 _LOGGER = logging.getLogger(__name__)
 ISSUE_NDOV_OUTDATED = "ndov_outdated"
+ISSUE_API_PAUSED = "api_paused"
+MIGRATED_KEY = "migrated_zone_settings"  # old number entities -> new selects (value per stop)
+STARTUP_PARALLEL = 5  # at most this many stops fetch at the same time during the first refresh
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Publiek pad voor het kaartlogo (entity_picture van de halte op de HA-kaart)."""
+    # Public path for the stop pictures (entity_picture of the stop on the HA map)
     if getattr(hass, "http", None) is not None:
-        from homeassistant.components.http import StaticPathConfig  # noqa: PLC0415
-
         await hass.http.async_register_static_paths(
             [StaticPathConfig(STATIC_URL, str(Path(__file__).parent / "static"), True)]
         )
 
-    async def _refresh_stops(call: ServiceCall) -> None:
-        """Zonder doel: alle haltes; met doel (apparaten/entiteiten): alleen die haltes."""
+    async def _refresh(call: ServiceCall) -> None:
+        """Action ``refresh``: no target = all stops, otherwise only the targeted stops (devices/entities/areas)."""
         coordinators: dict[str, StopCoordinator] = {}
         for entry in hass.config_entries.async_loaded_entries(DOMAIN):
             coordinators.update(entry.runtime_data.coordinators)
-        if not any(k in call.data for k in ("device_id", "entity_id", "area_id", "floor_id", "label_id")):
-            targets = list(coordinators.values())
-        else:
-            # Doel zelf uitlezen (geen afhankelijkheid van interne HA-helpers die per versie verhuizen)
-            ent_reg, dev_reg = er.async_get(hass), dr.async_get(hass)
-            device_ids = set(cv.ensure_list(call.data.get("device_id")))
-            for entity_id in cv.ensure_list(call.data.get("entity_id")):
-                if (reg := ent_reg.async_get(entity_id)) and reg.device_id:
-                    device_ids.add(reg.device_id)
-            for area_id in cv.ensure_list(call.data.get("area_id")):
-                device_ids |= {d.id for d in dr.async_entries_for_area(dev_reg, area_id)}
+        selected = async_extract_referenced_entity_ids(hass, TargetSelection(call.data))
+        if selected.referenced or selected.indirectly_referenced or selected.referenced_devices:
+            dev_reg = dr.async_get(hass)
+            ent_reg = er.async_get(hass)
+            device_ids = set(selected.referenced_devices)
+            for entity_id in selected.referenced | selected.indirectly_referenced:
+                if (reg_entry := ent_reg.async_get(entity_id)) and reg_entry.device_id:
+                    device_ids.add(reg_entry.device_id)
             keys = {
-                i[1]
+                ident[1]
                 for device_id in device_ids
-                if (dev := dev_reg.async_get(device_id))
-                for i in dev.identifiers
-                if i[0] == DOMAIN
+                if (device := dev_reg.async_get(device_id))
+                for ident in device.identifiers
+                if ident[0] == DOMAIN
             }
-            targets = [c for k, c in coordinators.items() if k in keys]
-        await asyncio.gather(*(c.async_refresh() for c in targets))
+            coordinators = {k: c for k, c in coordinators.items() if k in keys}
+        await asyncio.gather(*(c.async_manual_refresh() for c in coordinators.values()))
 
-    hass.services.async_register(DOMAIN, SERVICE_REFRESH_STOPS, _refresh_stops)
+    schema = vol.Schema(cv.TARGET_SERVICE_FIELDS)
+    hass.services.async_register(DOMAIN, SERVICE_REFRESH, _refresh, schema=schema)
+    hass.services.async_register(DOMAIN, SERVICE_REFRESH_STOPS, _refresh, schema=schema)  # old name
     return True
 
 
+def _make_outage_handler(hass: HomeAssistant, api):
+    """Create/delete a repair issue when the API pauses automatic refreshes after repeated errors."""
+
+    def handler(outage: bool) -> None:
+        if outage:
+            ir.async_create_issue(
+                hass,
+                DOMAIN,
+                ISSUE_API_PAUSED,
+                is_fixable=False,
+                severity=ir.IssueSeverity.WARNING,
+                translation_key=ISSUE_API_PAUSED,
+                translation_placeholders={"errors": str(api.consecutive_errors)},
+            )
+        else:
+            ir.async_delete_issue(hass, DOMAIN, ISSUE_API_PAUSED)
+
+    return handler
+
+
+def _migrate_zone_numbers(hass: HomeAssistant, keys: set[str]) -> None:
+    """The zone interval and stop-after numbers became selects: remember their last value, remove the old entities."""
+    ent_reg = er.async_get(hass)
+    stored = restore_state.async_get(hass).last_states
+    migrated: dict[str, dict[str, float]] = hass.data.setdefault(DOMAIN, {}).setdefault(MIGRATED_KEY, {})
+    for key in keys:
+        for suffix, name in (("zone_interval", "interval"), ("zone_stop_after", "stop_after")):
+            entity_id = ent_reg.async_get_entity_id("number", DOMAIN, f"{key}_{suffix}")
+            if not entity_id:
+                continue
+            last = stored.get(entity_id)
+            if last is not None:
+                with contextlib.suppress(TypeError, ValueError):  # unknown/unavailable: the select uses its default
+                    migrated.setdefault(key, {})[name] = float(last.state.state)
+            ent_reg.async_remove(entity_id)
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: DutchBusConfigEntry) -> bool:
+    protection = get_protection(entry.options)
     api = get_api(hass)
+    api.configure(spacing=protection[CONF_API_SPACING], max_errors=protection[CONF_API_MAX_ERRORS])
+    api.on_outage_change = _make_outage_handler(hass, api)
+    ir.async_delete_issue(hass, DOMAIN, ISSUE_API_PAUSED)  # fresh state after a reload
     stops = get_stops(entry)
     max_departures = int(entry.options.get(CONF_MAX_DEPARTURES, DEFAULT_MAX_DEPARTURES))
 
@@ -86,58 +137,67 @@ async def async_setup_entry(hass: HomeAssistant, entry: DutchBusConfigEntry) -> 
         coordinator = StopCoordinator(hass, entry, api, stop, max_departures)
         coordinators[coordinator.key] = coordinator
 
-    # Eerste verversing parallel (en gebundeld in één OVapi-verzoek) op de achtergrond: een trage of haperende
-    # OVapi houdt het opstarten van Home Assistant niet op. We wachten maximaal FIRST_REFRESH_TIMEOUT seconden
-    # zodat de meeste entiteiten meteen een waarde hebben; de rest vult zich zodra OVapi antwoordt.
+    # First refresh in the background (at most STARTUP_PARALLEL stops at a time, combined into few OVapi requests):
+    # a slow or failing OVapi does not hold up the startup of Home Assistant. We wait at most
+    # FIRST_REFRESH_TIMEOUT seconds so most entities have a value right away; the rest fills in when OVapi answers.
     first = entry.async_create_background_task(
-        hass, _async_first_refresh(coordinators), f"{DOMAIN} eerste verversing"
+        hass, _async_first_refresh(coordinators), f"{DOMAIN} first refresh"
     )
     await asyncio.wait({first}, timeout=FIRST_REFRESH_TIMEOUT)
 
     entry.runtime_data = DutchBusData(api=api, coordinators=coordinators)
 
-    # Verwijderde haltes: apparaat opruimen
+    # Removed stops: clean up the device
     dev_reg = dr.async_get(hass)
     current = set(coordinators)
     for device in dr.async_entries_for_config_entry(dev_reg, entry.entry_id):
         ids = {i[1] for i in device.identifiers if i[0] == DOMAIN}
         if ids and not ids & current:
-            dev_reg.async_update_device(device.id, remove_config_entry_id=entry.entry_id)
+            dev_reg.async_remove_device(device.id)  # a device belongs to a single config entry
 
-    # De binaire sensor 'Persoon nabij' bestaat niet meer (vervangen door de sensor 'Personen nabij')
     registry = er.async_get(hass)
+    _migrate_zone_numbers(hass, current)
     for old in er.async_entries_for_config_entry(registry, entry.entry_id):
-        if old.domain == "sensor" and "_line_" in (old.unique_id or "") and not entry.options.get(CONF_LINE_SENSORS, DEFAULT_LINE_SENSORS):
-            registry.async_remove(old.entity_id)  # sensoren per lijn staan uit
-        if old.domain in ("binary_sensor", "device_tracker"):  # device_tracker: sinds 0.8 een sensor
+        unique_id = old.unique_id or ""
+        if old.domain == "sensor" and "_line_" in unique_id and not entry.options.get(CONF_LINE_SENSORS, DEFAULT_LINE_SENSORS):
+            registry.async_remove(old.entity_id)  # line sensors are switched off
+        if old.domain == "device_tracker":  # a sensor since 0.8
+            registry.async_remove(old.entity_id)
+        if old.domain == "binary_sensor" and not unique_id.endswith("_paused"):  # the old 'person nearby' sensor
             registry.async_remove(old.entity_id)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    # Nabijheid pas starten als de entiteiten hun herstelde instellingen (straal, aan/uit) hebben
+    # Start proximity only after the entities restored their settings (radius, on/off)
     tracker = ProximityTracker(hass, coordinators, list(entry.options.get(CONF_PERSONS, [])))
     entry.runtime_data.tracker = tracker
     entry.async_on_unload(tracker.async_start())
     entry.async_on_unload(entry.add_update_listener(_async_reload_entry))
 
-    # Reparatiemelding als het NDOV-haltebestand te oud is (nu en daarna dagelijks)
+    # Repair issue when the NDOV stop file is too old (now and then daily)
     async def _check(_now: object = None) -> None:
         await _async_check_ndov_age(hass, api)
 
-    entry.async_create_background_task(hass, _check(), f"{DOMAIN} ouderdom haltebestand")
+    entry.async_create_background_task(hass, _check(), f"{DOMAIN} stop file age")
     entry.async_on_unload(async_track_time_interval(hass, _check, timedelta(days=1)))
     return True
 
 
 async def _async_first_refresh(coordinators: dict[str, StopCoordinator]) -> None:
-    await asyncio.gather(*(c.async_refresh() for c in coordinators.values()))
+    limit = asyncio.Semaphore(STARTUP_PARALLEL)
+
+    async def one(coordinator: StopCoordinator) -> None:
+        async with limit:
+            await coordinator.async_manual_refresh()
+
+    await asyncio.gather(*(one(c) for c in coordinators.values()))
 
 
 async def _async_check_ndov_age(hass: HomeAssistant, api) -> None:
-    """Meld een reparatie als het haltebestand ouder is dan NDOV_OUTDATED_DAYS; haal de melding weg als het weer vers is."""
+    """Raise a repair issue when the stop file is older than NDOV_OUTDATED_DAYS; remove it when the file is fresh again."""
     try:
         info = await api.async_chb_info()
     except Exception:  # noqa: BLE001
-        _LOGGER.debug("Ouderdom haltebestand bepalen mislukt", exc_info=True)
+        _LOGGER.debug("Determining the age of the stop file failed", exc_info=True)
         return
     if info and info["file_age_days"] > NDOV_OUTDATED_DAYS:
         ir.async_create_issue(
@@ -154,15 +214,25 @@ async def _async_check_ndov_age(hass: HomeAssistant, api) -> None:
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: DutchBusConfigEntry) -> bool:
-    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    if unloaded:
+        ir.async_delete_issue(hass, DOMAIN, ISSUE_API_PAUSED)
+        for key in entry.runtime_data.coordinators:  # no stale 'stop paused' repair issues
+            ir.async_delete_issue(hass, DOMAIN, issue_id(key))
+    return unloaded
 
 
 async def async_remove_config_entry_device(
     hass: HomeAssistant, entry: DutchBusConfigEntry, device: dr.DeviceEntry
 ) -> bool:
-    """Alleen apparaten van niet meer geconfigureerde haltes mogen handmatig weg."""
-    current = {stop_key(s) for s in get_stops(entry)}
-    return not any(i[0] == DOMAIN and i[1] in current for i in device.identifiers)
+    """Deleting a stop's device removes that stop from the configuration (same as Configure -> remove)."""
+    ids = {i[1] for i in device.identifiers if i[0] == DOMAIN}
+    stops = get_stops(entry)
+    remaining = [s for s in stops if stop_key(s) not in ids]
+    if len(remaining) != len(stops):
+        # the update listener reloads the entry, which also cleans up the stop's entities and issues
+        hass.config_entries.async_update_entry(entry, options={**entry.options, CONF_STOPS: remaining})
+    return True
 
 
 async def _async_reload_entry(hass: HomeAssistant, entry: DutchBusConfigEntry) -> None:

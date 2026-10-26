@@ -2,6 +2,39 @@
 
 Formaat gebaseerd op [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/).
 
+## [0.9.1]
+### Toegevoegd
+- Per halte (Halte bewerken) kun je de marker op de HA-kaart verschuiven met een kaartkiezer. Vink *Marker terugzetten* aan en verstuur om te resetten. Alleen de marker verschuift; afstanden en zones gebruiken de echte haltepositie.
+
+### Gewijzigd
+- README opgeruimd en overzichtelijker: aparte kopjes voor entiteiten, instellingen, verversen en foutbeveiliging, en een tabel met de twee haltemarkers (normaal en *Data vernieuwen*).
+
+## [0.9.0]
+Alle verbeteringen uit de EnBW-Laadpalen-integratie in één release.
+
+### Toegevoegd
+- **Foutbeveiliging** (sectie in Instellingen): exponentiële wachttijd per halte (60–900 s), pauze na 5 opeenvolgende fouten met een reparatiemelding en de diagnose-entiteit *Gepauzeerd*; API-stroomonderbreker (10 fouten of HTTP 429 met `Retry-After`, 60–1800 s, melding `api_paused`); minimale tussenruimte van 3 s tussen automatische aanroepen; opstart met maximaal 5 gelijktijdige haltes. Handmatig vernieuwen werkt altijd.
+- **Slimmere zonebezoeken:** één vernieuwing bij binnenkomst (minstens 60 s na de vorige), daarna op de gekozen frequentie; stoppen na 10/30/60/120 min of onbeperkt; afkoeltijd (standaard 15 min); schakelaar *Alleen vernieuwen bij naderen* (25 m dichterbij); sensor *Afstand tot persoon*.
+- **Standaardwaarden** voor nieuwe haltes (op de eerste installatie op één scherm, later in Instellingen) met *Toepassen op bestaande haltes* (standaard uit).
+- Actie `ovapi_bustijden.refresh` met doelkiezer en de knop *Alle haltes vernieuwen*; `refresh_stops` blijft als alias.
+- Diagnostics (ook per apparaat), diagnose-entiteit *Opeenvolgende fouten*, reparatiemeldingen worden opgeruimd bij uitladen.
+- `async_remove_config_entry_device`: een halte verwijderen via het apparaat verwijdert hem ook uit de configuratie.
+- Tests voor vertaal-placeholders, manifest/hacs.json, services en verboden aanroepen; mypy in CI.
+
+### Gewijzigd
+- Minimale Home Assistant-versie 2026.2.0 (`hacs.json`); `import_executor` aan; geen verouderde aanroepen meer; mypy schoon.
+- Informatieve attributen worden niet meer in de recorder bewaard (`MATCH_ALL`); verouderde data wordt *onbekend* en minutelijks bijgewerkt.
+- *Halte op kaart* is een sensor met `latitude`/`longitude` en `entity_picture`; zonder `location_name`. De optie *Logo op de HA-kaart* blijft.
+- `services.yaml` gebruikt alleen een entiteitsfilter (hassfest weigert apparaatfilters).
+- Code, commentaar en docstrings zijn Engels; teksten voor gebruikers blijven Nederlands.
+
+### Migratie
+- De zone-instellingen (frequentie en stoptijd) zijn van getallen naar keuzelijsten gegaan; de oude waarden worden automatisch omgezet naar de dichtstbijzijnde keuze. entity_id's en unique_id's blijven gelijk.
+- De oude `device_tracker` van *Halte op kaart* is al sinds 0.8 een sensor; resterende exemplaren worden opgeruimd.
+
+### Niet getest
+Werkelijke kaartweergave (ook het Kaart-paneel in het zijmenu), echte OVapi-/netwerkgedrag en HACS/GitHub.
+
 ## [0.8.3]
 ### Gewijzigd
 - De melding dat het certificaat van OVapi (`v0.ovapi.nl`, hostnaam komt niet overeen) niet geverifieerd kan worden staat nu op *info* in plaats van *waarschuwing*; de integratie schakelt de verificatie voor die host zelf uit, zoals eerder.
