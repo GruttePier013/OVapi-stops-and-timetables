@@ -1,0 +1,52 @@
+{
+  "entity": {
+    "sensor": {
+      "nearby_count": {
+        "default": "mdi:account-multiple"
+      },
+      "fetched_departures": {
+        "default": "mdi:counter"
+      },
+      "last_update": {
+        "default": "mdi:clock-check-outline"
+      },
+      "next_departure": {
+        "default": "mdi:bus-clock"
+      }
+    },
+    "number": {
+      "proximity_radius": {
+        "default": "mdi:radius-outline"
+      },
+      "zone_stop_after": {
+        "default": "mdi:timer-stop-outline"
+      },
+      "zone_interval": {
+        "default": "mdi:timer-refresh-outline"
+      }
+    },
+    "switch": {
+      "refresh_on_approach": {
+        "default": "mdi:map-marker-radius",
+        "state": {
+          "off": "mdi:map-marker-radius-outline"
+        }
+      }
+    },
+    "select": {
+      "refresh_schedule": {
+        "default": "mdi:calendar-sync"
+      }
+    },
+    "button": {
+      "refresh": {
+        "default": "mdi:refresh"
+      }
+    }
+  },
+  "services": {
+    "refresh_stops": {
+      "service": "mdi:bus-clock"
+    }
+  }
+}

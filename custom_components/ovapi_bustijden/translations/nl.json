@@ -1,0 +1,413 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "OVapi bussen en halteinformatie",
+        "menu_options": {
+          "search": "Haltes zoeken in een zone op de kaart",
+          "manual": "TPC-codes invoeren"
+        }
+      },
+      "search": {
+        "title": "Haltes zoeken",
+        "description": "Zet de pin op de kaart en maak de zoekcirkel groter of kleiner door aan de rand te slepen (50–5000 m, standaard 250 m). Onder de kaart zie je de bijbehorende coördinaten en straal; die lopen mee met de pin. Coördinaten (bijv. 52.1000, 5.1000) kun je hieronder invullen; die gaan voor de pin. Je krijgt daarna direct een lijst met de bushaltes in die zone, elke rijrichting apart.",
+        "data": {
+          "location": "Zone op de kaart",
+          "modes": "Vervoerstypen",
+          "place": "Adres of plaatsnaam"
+        },
+        "data_description": {
+          "modes": "Standaard alleen bus. Tram, metro en veerboot hebben ook realtime gegevens bij OVapi.",
+          "place": "Alleen een plaatsnaam (Voorbeeldstad): de kaart springt naar het centrum van de bebouwde kom (zoekstraal 2 km). Straat + plaats (Voorbeeldlaan Voorbeeldstad) of een adres: de pin komt op die straat of dat adres. Druk op Enter/Verzenden, verplaats daarna zo nodig de pin en verzend opnieuw om haltes te zoeken."
+        }
+      },
+      "select_stop": {
+        "title": "Selecteer haltes",
+        "description": "Vink de bushaltes aan die je wilt toevoegen. Elke checkbox is één rijrichting (één haltepaal) met eronder de huidige vertrektijden; bussen met een andere eindbestemming in dezelfde richting zijn samengevoegd. Elke aangevinkte halte wordt een eigen apparaat.\n\n{found}",
+        "data": {
+          "stop_1": "{stop_1_label}",
+          "stop_2": "{stop_2_label}",
+          "stop_3": "{stop_3_label}",
+          "stop_4": "{stop_4_label}",
+          "stop_5": "{stop_5_label}",
+          "stop_6": "{stop_6_label}",
+          "stop_7": "{stop_7_label}",
+          "stop_8": "{stop_8_label}",
+          "stop_9": "{stop_9_label}",
+          "stop_10": "{stop_10_label}",
+          "stop_11": "{stop_11_label}",
+          "stop_12": "{stop_12_label}",
+          "stop_13": "{stop_13_label}",
+          "stop_14": "{stop_14_label}",
+          "stop_15": "{stop_15_label}",
+          "stop_16": "{stop_16_label}",
+          "stop_17": "{stop_17_label}",
+          "stop_18": "{stop_18_label}",
+          "stop_19": "{stop_19_label}",
+          "stop_20": "{stop_20_label}",
+          "stop_21": "{stop_21_label}",
+          "stop_22": "{stop_22_label}",
+          "stop_23": "{stop_23_label}",
+          "stop_24": "{stop_24_label}",
+          "stop_25": "{stop_25_label}"
+        },
+        "data_description": {
+          "stop_1": "{stop_1_info}",
+          "stop_2": "{stop_2_info}",
+          "stop_3": "{stop_3_info}",
+          "stop_4": "{stop_4_info}",
+          "stop_5": "{stop_5_info}",
+          "stop_6": "{stop_6_info}",
+          "stop_7": "{stop_7_info}",
+          "stop_8": "{stop_8_info}",
+          "stop_9": "{stop_9_info}",
+          "stop_10": "{stop_10_info}",
+          "stop_11": "{stop_11_info}",
+          "stop_12": "{stop_12_info}",
+          "stop_13": "{stop_13_info}",
+          "stop_14": "{stop_14_info}",
+          "stop_15": "{stop_15_info}",
+          "stop_16": "{stop_16_info}",
+          "stop_17": "{stop_17_info}",
+          "stop_18": "{stop_18_info}",
+          "stop_19": "{stop_19_info}",
+          "stop_20": "{stop_20_info}",
+          "stop_21": "{stop_21_info}",
+          "stop_22": "{stop_22_info}",
+          "stop_23": "{stop_23_info}",
+          "stop_24": "{stop_24_info}",
+          "stop_25": "{stop_25_info}"
+        }
+      },
+      "stop_details": {
+        "title": "Halte instellen",
+        "description": "{progress}\n\nEerstvolgende bussen in deze richting: {direction}\n\nVink de lijnen aan die je wilt zien. De lijst toont de lijnen die nu in deze richting rijden (volgens OVapi); niets aanvinken = alle lijnen, ook lijnen die later verschijnen. Ontbreekt een lijn (bijv. 's nachts), vul hem dan hieronder in.",
+        "data": {
+          "name": "Naam",
+          "lines": "Lijnen tonen (leeg = alle lijnen)",
+          "extra_lines": "Andere lijnen (handmatig, optioneel)",
+          "destinations": "Alleen bestemmingen met… (kommagescheiden, leeg = alle)"
+        },
+        "data_description": {
+          "destinations": "Bijv. Station, Noord: toont alleen vertrekken waarvan de bestemming een van deze woorden bevat."
+        }
+      },
+      "manual": {
+        "title": "TPC-codes invoeren",
+        "description": "Voer één of meer OVapi timing-pointcodes in, gescheiden door komma's (bijv. 12345678). Daarna kies je naam en lijnen.",
+        "data": {
+          "tpc_codes": "TPC-code(s)"
+        }
+      },
+      "edit_stop": {
+        "title": "Welke halte?",
+        "data": {
+          "stop": "Halte"
+        }
+      },
+      "edit_details": {
+        "title": "Halte bewerken",
+        "data": {
+          "name": "Naam",
+          "tpc_codes": "TPC-code(s)",
+          "lines": "Lijnen tonen (leeg = alle lijnen)",
+          "extra_lines": "Andere lijnen (handmatig, optioneel)",
+          "destinations": "Alleen bestemmingen met… (kommagescheiden, leeg = alle)"
+        },
+        "data_description": {
+          "destinations": "Bijv. Station, Noord: toont alleen vertrekken waarvan de bestemming een van deze woorden bevat."
+        }
+      },
+      "extra_options": {
+        "title": "Extra opties",
+        "description": "Laatste instellingen voor de gekozen haltes.",
+        "data": {
+          "direction_in_name": "Richting in de apparaatnaam opnemen (- ri. …)",
+          "stale_hours": "Na hoeveel uur zijn busgegevens verouderd?",
+          "refresh_ndov": "NDOV data {ndov_days} dagen oud (bestand van {ndov_date}) opnieuw downloaden"
+        },
+        "data_description": {
+          "direction_in_name": "Standaard aan. Uit: alleen de haltenaam (bijvoorbeeld Voorbeeldstad, Markt); aan: Voorbeeldstad, Markt - ri. Station.",
+          "stale_hours": "Standaard 12 uur. Daarna tonen de haltes 'Data vernieuwen' en een halte met vraagteken. Later te wijzigen via Configureren → Instellingen.",
+          "refresh_ndov": "Selecteer deze optie als je de nieuwe of gewijzigde halte niet in de lijst hebt staan. De configuratie begint dan opnieuw met downloaden."
+        }
+      }
+    },
+    "error": {
+      "address_not_found": "Adres niet gevonden door PDOK.",
+      "cannot_connect": "Verbinding mislukt (PDOK of OVapi). Zie het logboek.",
+      "tpc_not_found": "OVapi kent deze TPC-code niet. Controleer de code; je kunt hem testen via v0.ovapi.nl/tpc/ gevolgd door de code.",
+      "invalid_tpc": "Geen geldige TPC-code gevonden.",
+      "no_selection": "Kies minstens één richting.",
+      "place_not_found": "Plaats of adres niet gevonden bij PDOK."
+    },
+    "abort": {
+      "no_stops": "Geen haltes gevonden binnen deze radius.",
+      "already_configured": "Deze halte is al toegevoegd.",
+      "single_instance_allowed": "Er is al een configuratie. Voeg haltes toe via Configureren.",
+      "chb_failed": "De haltes konden niet worden opgezocht (haltebestand van NDOV Loket niet beschikbaar). Probeer het later opnieuw of voeg een halte toe via 'TPC-codes invoeren'.",
+      "no_stops_configured": "Er zijn nog geen haltes ingesteld.",
+      "reconfigure_successful": "De halte is bijgewerkt."
+    },
+    "progress": {
+      "download": "Het haltebestand van NDOV Loket wordt gedownload (±13 MB). Dit gebeurt alleen de eerste keer en daarna eens in de 14 dagen; de voortgang staat in procenten in de cirkel.",
+      "unpack": "Het haltebestand wordt uitgepakt (±300 MB XML, gestreamd) en omgezet naar een compacte index. Dit kan op een Raspberry Pi enkele minuten duren; de voortgang staat in procenten in de cirkel.",
+      "load_stops": "De bushaltes in je zone worden opgezocht en live bij OVapi gecontroleerd."
+    }
+  },
+  "options": {
+    "step": {
+      "search": {
+        "title": "Haltes zoeken",
+        "description": "Zet de pin op de kaart en maak de zoekcirkel groter of kleiner door aan de rand te slepen (50–5000 m, standaard 250 m). Onder de kaart zie je de bijbehorende coördinaten en straal; die lopen mee met de pin. Coördinaten (bijv. 52.1000, 5.1000) kun je hieronder invullen; die gaan voor de pin. Je krijgt daarna direct een lijst met de bushaltes in die zone, elke rijrichting apart.",
+        "data": {
+          "location": "Zone op de kaart",
+          "modes": "Vervoerstypen",
+          "place": "Adres of plaatsnaam"
+        },
+        "data_description": {
+          "modes": "Standaard alleen bus. Tram, metro en veerboot hebben ook realtime gegevens bij OVapi.",
+          "place": "Alleen een plaatsnaam (Voorbeeldstad): de kaart springt naar het centrum van de bebouwde kom (zoekstraal 2 km). Straat + plaats (Voorbeeldlaan Voorbeeldstad) of een adres: de pin komt op die straat of dat adres. Druk op Enter/Verzenden, verplaats daarna zo nodig de pin en verzend opnieuw om haltes te zoeken."
+        }
+      },
+      "select_stop": {
+        "title": "Selecteer haltes",
+        "description": "Vink de bushaltes aan die je wilt toevoegen. Elke checkbox is één rijrichting (één haltepaal) met eronder de huidige vertrektijden; bussen met een andere eindbestemming in dezelfde richting zijn samengevoegd. Elke aangevinkte halte wordt een eigen apparaat.\n\n{found}",
+        "data": {
+          "stop_1": "{stop_1_label}",
+          "stop_2": "{stop_2_label}",
+          "stop_3": "{stop_3_label}",
+          "stop_4": "{stop_4_label}",
+          "stop_5": "{stop_5_label}",
+          "stop_6": "{stop_6_label}",
+          "stop_7": "{stop_7_label}",
+          "stop_8": "{stop_8_label}",
+          "stop_9": "{stop_9_label}",
+          "stop_10": "{stop_10_label}",
+          "stop_11": "{stop_11_label}",
+          "stop_12": "{stop_12_label}",
+          "stop_13": "{stop_13_label}",
+          "stop_14": "{stop_14_label}",
+          "stop_15": "{stop_15_label}",
+          "stop_16": "{stop_16_label}",
+          "stop_17": "{stop_17_label}",
+          "stop_18": "{stop_18_label}",
+          "stop_19": "{stop_19_label}",
+          "stop_20": "{stop_20_label}",
+          "stop_21": "{stop_21_label}",
+          "stop_22": "{stop_22_label}",
+          "stop_23": "{stop_23_label}",
+          "stop_24": "{stop_24_label}",
+          "stop_25": "{stop_25_label}"
+        },
+        "data_description": {
+          "stop_1": "{stop_1_info}",
+          "stop_2": "{stop_2_info}",
+          "stop_3": "{stop_3_info}",
+          "stop_4": "{stop_4_info}",
+          "stop_5": "{stop_5_info}",
+          "stop_6": "{stop_6_info}",
+          "stop_7": "{stop_7_info}",
+          "stop_8": "{stop_8_info}",
+          "stop_9": "{stop_9_info}",
+          "stop_10": "{stop_10_info}",
+          "stop_11": "{stop_11_info}",
+          "stop_12": "{stop_12_info}",
+          "stop_13": "{stop_13_info}",
+          "stop_14": "{stop_14_info}",
+          "stop_15": "{stop_15_info}",
+          "stop_16": "{stop_16_info}",
+          "stop_17": "{stop_17_info}",
+          "stop_18": "{stop_18_info}",
+          "stop_19": "{stop_19_info}",
+          "stop_20": "{stop_20_info}",
+          "stop_21": "{stop_21_info}",
+          "stop_22": "{stop_22_info}",
+          "stop_23": "{stop_23_info}",
+          "stop_24": "{stop_24_info}",
+          "stop_25": "{stop_25_info}"
+        }
+      },
+      "stop_details": {
+        "title": "Halte instellen",
+        "description": "{progress}\n\nEerstvolgende bussen in deze richting: {direction}\n\nVink de lijnen aan die je wilt zien. De lijst toont de lijnen die nu in deze richting rijden (volgens OVapi); niets aanvinken = alle lijnen, ook lijnen die later verschijnen. Ontbreekt een lijn (bijv. 's nachts), vul hem dan hieronder in.",
+        "data": {
+          "name": "Naam",
+          "lines": "Lijnen tonen (leeg = alle lijnen)",
+          "extra_lines": "Andere lijnen (handmatig, optioneel)",
+          "destinations": "Alleen bestemmingen met… (kommagescheiden, leeg = alle)"
+        },
+        "data_description": {
+          "destinations": "Bijv. Station, Noord: toont alleen vertrekken waarvan de bestemming een van deze woorden bevat."
+        }
+      },
+      "manual": {
+        "title": "TPC-codes invoeren",
+        "description": "Voer één of meer OVapi timing-pointcodes in, gescheiden door komma's (bijv. 12345678). Daarna kies je naam en lijnen.",
+        "data": {
+          "tpc_codes": "TPC-code(s)"
+        }
+      },
+      "init": {
+        "title": "Bushaltes beheren",
+        "menu_options": {
+          "search": "Haltes zoeken in een zone op de kaart",
+          "manual": "Halte toevoegen via TPC-code",
+          "edit_stop": "Halte bewerken",
+          "remove_stops": "Haltes verwijderen",
+          "settings": "Instellingen"
+        }
+      },
+      "edit_stop": {
+        "title": "Welke halte?",
+        "data": {
+          "stop": "Halte"
+        }
+      },
+      "edit_details": {
+        "title": "Halte bewerken",
+        "data": {
+          "name": "Naam",
+          "tpc_codes": "TPC-code(s)",
+          "lines": "Lijnen tonen (leeg = alle lijnen)",
+          "extra_lines": "Andere lijnen (handmatig, optioneel)",
+          "destinations": "Alleen bestemmingen met… (kommagescheiden, leeg = alle)"
+        },
+        "data_description": {
+          "destinations": "Bijv. Station, Noord: toont alleen vertrekken waarvan de bestemming een van deze woorden bevat."
+        }
+      },
+      "remove_stops": {
+        "title": "Haltes verwijderen",
+        "data": {
+          "remove": "Verwijder haltes"
+        }
+      },
+      "settings": {
+        "title": "Instellingen",
+        "description": "Maximaal aantal vertrekken in het attribuut. Gevolgde personen bepalen wie de 'Persoon nabij'-sensoren en 'Vernieuwen in zone' activeren.",
+        "data": {
+          "max_departures": "Aantal vertrekken in het attribuut",
+          "persons": "Gevolgde personen (leeg = alle)",
+          "map_logo": "Logo op de HA-kaart gebruiken (uit = gewoon bus-icoon)",
+          "stale_hours": "Na hoeveel uur zijn busgegevens verouderd?",
+          "line_sensors": "Per lijn een sensor aanmaken (bijv. Lijn 74)"
+        }
+      },
+      "extra_options": {
+        "title": "Extra opties",
+        "description": "Laatste instellingen voor de gekozen haltes.",
+        "data": {
+          "direction_in_name": "Richting in de apparaatnaam opnemen (- ri. …)",
+          "stale_hours": "Na hoeveel uur zijn busgegevens verouderd?",
+          "refresh_ndov": "NDOV data {ndov_days} dagen oud (bestand van {ndov_date}) opnieuw downloaden"
+        },
+        "data_description": {
+          "direction_in_name": "Standaard aan. Uit: alleen de haltenaam (bijvoorbeeld Voorbeeldstad, Markt); aan: Voorbeeldstad, Markt - ri. Station.",
+          "stale_hours": "Standaard 12 uur. Daarna tonen de haltes 'Data vernieuwen' en een halte met vraagteken. Later te wijzigen via Configureren → Instellingen.",
+          "refresh_ndov": "Selecteer deze optie als je de nieuwe of gewijzigde halte niet in de lijst hebt staan. De configuratie begint dan opnieuw met downloaden."
+        }
+      }
+    },
+    "error": {
+      "address_not_found": "Adres niet gevonden door PDOK.",
+      "cannot_connect": "Verbinding mislukt (PDOK of OVapi). Zie het logboek.",
+      "tpc_not_found": "OVapi kent deze TPC-code niet. Controleer de code; je kunt hem testen via v0.ovapi.nl/tpc/ gevolgd door de code.",
+      "invalid_tpc": "Geen geldige TPC-code gevonden.",
+      "no_selection": "Kies minstens één richting.",
+      "place_not_found": "Plaats of adres niet gevonden bij PDOK."
+    },
+    "abort": {
+      "no_stops": "Geen haltes gevonden binnen deze radius.",
+      "already_configured": "Deze halte is al toegevoegd.",
+      "no_stops_configured": "Er zijn nog geen haltes ingesteld.",
+      "chb_failed": "De haltes konden niet worden opgezocht (haltebestand van NDOV Loket niet beschikbaar). Probeer het later opnieuw of voeg een halte toe via 'TPC-codes invoeren'."
+    },
+    "progress": {
+      "download": "Het haltebestand van NDOV Loket wordt gedownload (±13 MB). Dit gebeurt alleen de eerste keer en daarna eens in de 14 dagen; de voortgang staat in procenten in de cirkel.",
+      "unpack": "Het haltebestand wordt uitgepakt (±300 MB XML, gestreamd) en omgezet naar een compacte index. Dit kan op een Raspberry Pi enkele minuten duren; de voortgang staat in procenten in de cirkel.",
+      "load_stops": "De bushaltes in je zone worden opgezocht en live bij OVapi gecontroleerd."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "next_departure": {
+        "name": "Volgende vertrek"
+      },
+      "departures": {
+        "name": "Vertrektijden"
+      },
+      "last_update": {
+        "name": "Bijgewerkt"
+      },
+      "distance_m": {
+        "name": "Afstand"
+      },
+      "stop_code": {
+        "name": "NDOV haltecode (quay)"
+      },
+      "tpc_code": {
+        "name": "OVapi timing-pointcode"
+      },
+      "fetched_departures": {
+        "name": "Opgehaalde vertrektijden"
+      },
+      "lines": {
+        "name": "Lijnen"
+      },
+      "nearby_count": {
+        "name": "Personen nabij"
+      },
+      "location": {
+        "name": "Halte op kaart"
+      }
+    },
+    "button": {
+      "refresh": {
+        "name": "Vernieuwen"
+      }
+    },
+    "select": {
+      "refresh_schedule": {
+        "name": "Vernieuwingsfrequentie",
+        "state": {
+          "never": "Nooit",
+          "daily": "Dagelijks (06:00)",
+          "hourly": "Ieder uur",
+          "every_30_min_06_09": "Elke 30 min (06–09 uur)",
+          "every_30_min_16_19": "Elke 30 min (16–19 uur)",
+          "every_5_min": "Elke 5 min",
+          "every_5_min_rush": "Elke 5 min (06–09 en 16–19 uur)"
+        }
+      }
+    },
+    "number": {
+      "proximity_radius": {
+        "name": "Zone radius"
+      },
+      "zone_stop_after": {
+        "name": "Vernieuwen in zone stoppen na"
+      },
+      "zone_interval": {
+        "name": "Vernieuwen in zone elke"
+      }
+    },
+    "switch": {
+      "refresh_on_approach": {
+        "name": "Vernieuwen als in zone"
+      }
+    }
+  },
+  "services": {
+    "refresh_stops": {
+      "name": "Halte vernieuwen",
+      "description": "Vernieuwt alle haltes, of alleen de haltes (apparaten of entiteiten) die je als doel opgeeft."
+    }
+  },
+  "issues": {
+    "ndov_outdated": {
+      "title": "Haltebestand van NDOV Loket is verouderd",
+      "description": "Het haltebestand is {days} dagen oud (grens: {limit} dagen). Nieuwe of gewijzigde haltes ontbreken mogelijk. Open Configureren → Haltes zoeken en vink *opnieuw downloaden* aan om het te verversen."
+    }
+  }
+}

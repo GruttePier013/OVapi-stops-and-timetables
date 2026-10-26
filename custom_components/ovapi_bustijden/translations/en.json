@@ -1,0 +1,413 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "OVapi buses and stop information",
+        "menu_options": {
+          "search": "Search stops in a zone on the map",
+          "manual": "Enter TPC codes"
+        }
+      },
+      "search": {
+        "title": "Search stops",
+        "description": "Place the pin on the map and make the search circle larger or smaller by dragging its edge (50–5000 m, default 250 m). Below the map you see the matching coordinates and radius; they follow the pin. If you prefer an address or coordinates, enter them below (they take precedence over the pin; e.g. 52.1000, 5.1000). You then immediately get a list of the bus stops in that zone, each direction separately.",
+        "data": {
+          "location": "Zone on the map",
+          "modes": "Transport types",
+          "place": "Address or place name"
+        },
+        "data_description": {
+          "modes": "Bus only by default. Tram, metro and ferry also have real-time data at OVapi.",
+          "place": "Place name only (Voorbeeldstad): the map jumps to the centre of the town (2 km radius). Street + place (Voorbeeldlaan Voorbeeldstad) or an address: the pin is placed on that street or address. Press Enter/Submit, then move the pin if needed and submit again to search for stops."
+        }
+      },
+      "select_stop": {
+        "title": "Select stops",
+        "description": "Tick the bus stops you want to add. Each checkbox is one direction (one stop pole) with the current departures below it; buses with a different final destination in the same direction are merged. Every ticked stop becomes its own device.\n\n{found}",
+        "data": {
+          "stop_1": "{stop_1_label}",
+          "stop_2": "{stop_2_label}",
+          "stop_3": "{stop_3_label}",
+          "stop_4": "{stop_4_label}",
+          "stop_5": "{stop_5_label}",
+          "stop_6": "{stop_6_label}",
+          "stop_7": "{stop_7_label}",
+          "stop_8": "{stop_8_label}",
+          "stop_9": "{stop_9_label}",
+          "stop_10": "{stop_10_label}",
+          "stop_11": "{stop_11_label}",
+          "stop_12": "{stop_12_label}",
+          "stop_13": "{stop_13_label}",
+          "stop_14": "{stop_14_label}",
+          "stop_15": "{stop_15_label}",
+          "stop_16": "{stop_16_label}",
+          "stop_17": "{stop_17_label}",
+          "stop_18": "{stop_18_label}",
+          "stop_19": "{stop_19_label}",
+          "stop_20": "{stop_20_label}",
+          "stop_21": "{stop_21_label}",
+          "stop_22": "{stop_22_label}",
+          "stop_23": "{stop_23_label}",
+          "stop_24": "{stop_24_label}",
+          "stop_25": "{stop_25_label}"
+        },
+        "data_description": {
+          "stop_1": "{stop_1_info}",
+          "stop_2": "{stop_2_info}",
+          "stop_3": "{stop_3_info}",
+          "stop_4": "{stop_4_info}",
+          "stop_5": "{stop_5_info}",
+          "stop_6": "{stop_6_info}",
+          "stop_7": "{stop_7_info}",
+          "stop_8": "{stop_8_info}",
+          "stop_9": "{stop_9_info}",
+          "stop_10": "{stop_10_info}",
+          "stop_11": "{stop_11_info}",
+          "stop_12": "{stop_12_info}",
+          "stop_13": "{stop_13_info}",
+          "stop_14": "{stop_14_info}",
+          "stop_15": "{stop_15_info}",
+          "stop_16": "{stop_16_info}",
+          "stop_17": "{stop_17_info}",
+          "stop_18": "{stop_18_info}",
+          "stop_19": "{stop_19_info}",
+          "stop_20": "{stop_20_info}",
+          "stop_21": "{stop_21_info}",
+          "stop_22": "{stop_22_info}",
+          "stop_23": "{stop_23_info}",
+          "stop_24": "{stop_24_info}",
+          "stop_25": "{stop_25_info}"
+        }
+      },
+      "stop_details": {
+        "title": "Set up stop",
+        "description": "{progress}\n\nNext buses in this direction: {direction}\n\nTick the lines you want to see. The list shows the lines currently running in this direction (according to OVapi); tick none = all lines, including lines that appear later. If a line is missing (e.g. at night), enter it below.",
+        "data": {
+          "name": "Name",
+          "lines": "Lines to show (empty = all lines)",
+          "extra_lines": "Other lines (manual, optional)",
+          "destinations": "Only destinations containing… (comma separated, empty = all)"
+        },
+        "data_description": {
+          "destinations": "E.g. Station, Noord: only shows departures whose destination contains one of these words."
+        }
+      },
+      "manual": {
+        "title": "Enter TPC codes",
+        "description": "Enter one or more OVapi timing point codes, comma separated (e.g. 12345678). Next you choose a name and lines.",
+        "data": {
+          "tpc_codes": "TPC code(s)"
+        }
+      },
+      "edit_stop": {
+        "title": "Which stop?",
+        "data": {
+          "stop": "Stop"
+        }
+      },
+      "edit_details": {
+        "title": "Edit stop",
+        "data": {
+          "name": "Name",
+          "tpc_codes": "TPC code(s)",
+          "lines": "Lines to show (empty = all lines)",
+          "extra_lines": "Other lines (manual, optional)",
+          "destinations": "Only destinations containing… (comma separated, empty = all)"
+        },
+        "data_description": {
+          "destinations": "E.g. Station, Noord: only shows departures whose destination contains one of these words."
+        }
+      },
+      "extra_options": {
+        "title": "Extra options",
+        "description": "Final settings for the chosen stops.",
+        "data": {
+          "direction_in_name": "Include the direction in the device name (- ri. …)",
+          "stale_hours": "Hours before bus data counts as outdated",
+          "refresh_ndov": "NDOV data {ndov_days} days old (file of {ndov_date}): download again"
+        },
+        "data_description": {
+          "direction_in_name": "On by default. Off: just the stop name (for example Voorbeeldstad, Markt); on: Voorbeeldstad, Markt - ri. Station.",
+          "stale_hours": "Default 12 hours. After that stops show 'Data vernieuwen' and a stop icon with a question mark. Change later under Configure → Settings.",
+          "refresh_ndov": "Select this if the new or changed stop is not in the list. The configuration then starts over with the download."
+        }
+      }
+    },
+    "error": {
+      "address_not_found": "Address not found by PDOK.",
+      "cannot_connect": "Connection failed (PDOK or OVapi). See the log.",
+      "tpc_not_found": "OVapi doesn't know this TPC code. Check the code; you can test it at v0.ovapi.nl/tpc/ followed by the code.",
+      "invalid_tpc": "No valid TPC code found.",
+      "no_selection": "Choose at least one direction.",
+      "place_not_found": "Place or address not found at PDOK."
+    },
+    "abort": {
+      "no_stops": "No stops found within this radius.",
+      "already_configured": "This stop was already added.",
+      "single_instance_allowed": "Already configured. Add stops via Configure.",
+      "chb_failed": "The stops could not be looked up (the NDOV Loket stop file is unavailable). Try again later or add a stop via 'Enter TPC codes'.",
+      "no_stops_configured": "No stops configured yet.",
+      "reconfigure_successful": "The stop was updated."
+    },
+    "progress": {
+      "download": "The stop file from NDOV Loket is being downloaded (~13 MB). This only happens the first time and then every 14 days; progress is shown as a percentage in the circle.",
+      "unpack": "The stop file is being unpacked (~300 MB of XML, streamed) and converted to a compact index. This can take a few minutes on a Raspberry Pi; progress is shown as a percentage in the circle.",
+      "load_stops": "Looking up the bus stops in your zone and checking them live with OVapi."
+    }
+  },
+  "options": {
+    "step": {
+      "search": {
+        "title": "Search stops",
+        "description": "Place the pin on the map and make the search circle larger or smaller by dragging its edge (50–5000 m, default 250 m). Below the map you see the matching coordinates and radius; they follow the pin. If you prefer an address or coordinates, enter them below (they take precedence over the pin; e.g. 52.1000, 5.1000). You then immediately get a list of the bus stops in that zone, each direction separately.",
+        "data": {
+          "location": "Zone on the map",
+          "modes": "Transport types",
+          "place": "Address or place name"
+        },
+        "data_description": {
+          "modes": "Bus only by default. Tram, metro and ferry also have real-time data at OVapi.",
+          "place": "Place name only (Voorbeeldstad): the map jumps to the centre of the town (2 km radius). Street + place (Voorbeeldlaan Voorbeeldstad) or an address: the pin is placed on that street or address. Press Enter/Submit, then move the pin if needed and submit again to search for stops."
+        }
+      },
+      "select_stop": {
+        "title": "Select stops",
+        "description": "Tick the bus stops you want to add. Each checkbox is one direction (one stop pole) with the current departures below it; buses with a different final destination in the same direction are merged. Every ticked stop becomes its own device.\n\n{found}",
+        "data": {
+          "stop_1": "{stop_1_label}",
+          "stop_2": "{stop_2_label}",
+          "stop_3": "{stop_3_label}",
+          "stop_4": "{stop_4_label}",
+          "stop_5": "{stop_5_label}",
+          "stop_6": "{stop_6_label}",
+          "stop_7": "{stop_7_label}",
+          "stop_8": "{stop_8_label}",
+          "stop_9": "{stop_9_label}",
+          "stop_10": "{stop_10_label}",
+          "stop_11": "{stop_11_label}",
+          "stop_12": "{stop_12_label}",
+          "stop_13": "{stop_13_label}",
+          "stop_14": "{stop_14_label}",
+          "stop_15": "{stop_15_label}",
+          "stop_16": "{stop_16_label}",
+          "stop_17": "{stop_17_label}",
+          "stop_18": "{stop_18_label}",
+          "stop_19": "{stop_19_label}",
+          "stop_20": "{stop_20_label}",
+          "stop_21": "{stop_21_label}",
+          "stop_22": "{stop_22_label}",
+          "stop_23": "{stop_23_label}",
+          "stop_24": "{stop_24_label}",
+          "stop_25": "{stop_25_label}"
+        },
+        "data_description": {
+          "stop_1": "{stop_1_info}",
+          "stop_2": "{stop_2_info}",
+          "stop_3": "{stop_3_info}",
+          "stop_4": "{stop_4_info}",
+          "stop_5": "{stop_5_info}",
+          "stop_6": "{stop_6_info}",
+          "stop_7": "{stop_7_info}",
+          "stop_8": "{stop_8_info}",
+          "stop_9": "{stop_9_info}",
+          "stop_10": "{stop_10_info}",
+          "stop_11": "{stop_11_info}",
+          "stop_12": "{stop_12_info}",
+          "stop_13": "{stop_13_info}",
+          "stop_14": "{stop_14_info}",
+          "stop_15": "{stop_15_info}",
+          "stop_16": "{stop_16_info}",
+          "stop_17": "{stop_17_info}",
+          "stop_18": "{stop_18_info}",
+          "stop_19": "{stop_19_info}",
+          "stop_20": "{stop_20_info}",
+          "stop_21": "{stop_21_info}",
+          "stop_22": "{stop_22_info}",
+          "stop_23": "{stop_23_info}",
+          "stop_24": "{stop_24_info}",
+          "stop_25": "{stop_25_info}"
+        }
+      },
+      "stop_details": {
+        "title": "Set up stop",
+        "description": "{progress}\n\nNext buses in this direction: {direction}\n\nTick the lines you want to see. The list shows the lines currently running in this direction (according to OVapi); tick none = all lines, including lines that appear later. If a line is missing (e.g. at night), enter it below.",
+        "data": {
+          "name": "Name",
+          "lines": "Lines to show (empty = all lines)",
+          "extra_lines": "Other lines (manual, optional)",
+          "destinations": "Only destinations containing… (comma separated, empty = all)"
+        },
+        "data_description": {
+          "destinations": "E.g. Station, Noord: only shows departures whose destination contains one of these words."
+        }
+      },
+      "manual": {
+        "title": "Enter TPC codes",
+        "description": "Enter one or more OVapi timing point codes, comma separated (e.g. 12345678). Next you choose a name and lines.",
+        "data": {
+          "tpc_codes": "TPC code(s)"
+        }
+      },
+      "init": {
+        "title": "Manage bus stops",
+        "menu_options": {
+          "search": "Search stops in a zone on the map",
+          "manual": "Add stop by TPC code",
+          "edit_stop": "Edit stop",
+          "remove_stops": "Remove stops",
+          "settings": "Settings"
+        }
+      },
+      "edit_stop": {
+        "title": "Which stop?",
+        "data": {
+          "stop": "Stop"
+        }
+      },
+      "edit_details": {
+        "title": "Edit stop",
+        "data": {
+          "name": "Name",
+          "tpc_codes": "TPC code(s)",
+          "lines": "Lines to show (empty = all lines)",
+          "extra_lines": "Other lines (manual, optional)",
+          "destinations": "Only destinations containing… (comma separated, empty = all)"
+        },
+        "data_description": {
+          "destinations": "E.g. Station, Noord: only shows departures whose destination contains one of these words."
+        }
+      },
+      "remove_stops": {
+        "title": "Remove stops",
+        "data": {
+          "remove": "Remove stops"
+        }
+      },
+      "settings": {
+        "title": "Settings",
+        "description": "Maximum number of departures in the attribute. Tracked persons determine who triggers the 'Person nearby' sensors and 'Refresh in zone'.",
+        "data": {
+          "max_departures": "Departures listed in the attribute",
+          "persons": "Tracked persons (empty = all)",
+          "map_logo": "Use the logo on the HA map (off = plain bus icon)",
+          "stale_hours": "Hours before bus data counts as outdated",
+          "line_sensors": "Create a sensor per line (e.g. Line 74)"
+        }
+      },
+      "extra_options": {
+        "title": "Extra options",
+        "description": "Final settings for the chosen stops.",
+        "data": {
+          "direction_in_name": "Include the direction in the device name (- ri. …)",
+          "stale_hours": "Hours before bus data counts as outdated",
+          "refresh_ndov": "NDOV data {ndov_days} days old (file of {ndov_date}): download again"
+        },
+        "data_description": {
+          "direction_in_name": "On by default. Off: just the stop name (for example Voorbeeldstad, Markt); on: Voorbeeldstad, Markt - ri. Station.",
+          "stale_hours": "Default 12 hours. After that stops show 'Data vernieuwen' and a stop icon with a question mark. Change later under Configure → Settings.",
+          "refresh_ndov": "Select this if the new or changed stop is not in the list. The configuration then starts over with the download."
+        }
+      }
+    },
+    "error": {
+      "address_not_found": "Address not found by PDOK.",
+      "cannot_connect": "Connection failed (PDOK or OVapi). See the log.",
+      "tpc_not_found": "OVapi doesn't know this TPC code. Check the code; you can test it at v0.ovapi.nl/tpc/ followed by the code.",
+      "invalid_tpc": "No valid TPC code found.",
+      "no_selection": "Choose at least one direction.",
+      "place_not_found": "Place or address not found at PDOK."
+    },
+    "abort": {
+      "no_stops": "No stops found within this radius.",
+      "already_configured": "This stop was already added.",
+      "no_stops_configured": "No stops configured yet.",
+      "chb_failed": "The stops could not be looked up (the NDOV Loket stop file is unavailable). Try again later or add a stop via 'Enter TPC codes'."
+    },
+    "progress": {
+      "download": "The stop file from NDOV Loket is being downloaded (~13 MB). This only happens the first time and then every 14 days; progress is shown as a percentage in the circle.",
+      "unpack": "The stop file is being unpacked (~300 MB of XML, streamed) and converted to a compact index. This can take a few minutes on a Raspberry Pi; progress is shown as a percentage in the circle.",
+      "load_stops": "Looking up the bus stops in your zone and checking them live with OVapi."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "next_departure": {
+        "name": "Next departure"
+      },
+      "departures": {
+        "name": "Departures"
+      },
+      "last_update": {
+        "name": "Updated"
+      },
+      "distance_m": {
+        "name": "Distance"
+      },
+      "stop_code": {
+        "name": "NDOV stop code (quay)"
+      },
+      "tpc_code": {
+        "name": "OVapi timing point code"
+      },
+      "fetched_departures": {
+        "name": "Fetched departures"
+      },
+      "lines": {
+        "name": "Lines"
+      },
+      "nearby_count": {
+        "name": "Persons nearby"
+      },
+      "location": {
+        "name": "Stop on map"
+      }
+    },
+    "button": {
+      "refresh": {
+        "name": "Refresh"
+      }
+    },
+    "select": {
+      "refresh_schedule": {
+        "name": "Refresh frequency",
+        "state": {
+          "never": "Never",
+          "daily": "Daily (06:00)",
+          "hourly": "Hourly",
+          "every_30_min_06_09": "Every 30 min (06–09)",
+          "every_30_min_16_19": "Every 30 min (16–19)",
+          "every_5_min": "Every 5 min",
+          "every_5_min_rush": "Every 5 min (06–09 and 16–19)"
+        }
+      }
+    },
+    "number": {
+      "proximity_radius": {
+        "name": "Zone radius"
+      },
+      "zone_stop_after": {
+        "name": "Stop refreshing in zone after"
+      },
+      "zone_interval": {
+        "name": "Refresh in zone every"
+      }
+    },
+    "switch": {
+      "refresh_on_approach": {
+        "name": "Refresh when in zone"
+      }
+    }
+  },
+  "services": {
+    "refresh_stops": {
+      "name": "Refresh stops",
+      "description": "Refreshes all stops, or only the stops (devices or entities) you specify as target."
+    }
+  },
+  "issues": {
+    "ndov_outdated": {
+      "title": "NDOV stop file is outdated",
+      "description": "The stop file is {days} days old (limit: {limit} days). New or changed stops may be missing. Open Configure → Search stops and tick *download again* to refresh it."
+    }
+  }
+}
