@@ -2,7 +2,6 @@
 
 # OVapi bussen en halteinformatie
 
-[![HACS Validate](https://github.com/GruttePier013/OVapi-stops-and-timetables/actions/workflows/validate.yml/badge.svg)](https://github.com/GruttePier013/OVapi-stops-and-timetables/actions/workflows/validate.yml)
 [![Open je Home Assistant en open deze repository in HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=GruttePier013&repository=OVapi-stops-and-timetables&category=integration)
 
 Live vertrektijden van bussen (en optioneel tram, metro en veerboot) in Nederland in Home Assistant, via [OVapi](https://v0.ovapi.nl). Je zoekt haltes op een kaart, kiest per rijrichting een halte en krijgt per halte sensoren, een kaartmarker en instellingen voor wanneer er ververst wordt.
@@ -110,4 +109,4 @@ default_zoom: 16
 - Realtime vertrektijden en informatieve attributen komen niet in de recorder-database.
 - Problemen? Download de **diagnostische gegevens** (op de integratiepagina; locaties zijn afgeschermd) en maak een [issue](https://github.com/GruttePier013/OVapi-stops-and-timetables/issues).
 
-Wijzigingen: zie [CHANGELOG.md](CHANGELOG.md). Licentie: MIT.
+Wijzigingen: zie [CHANGELOG.md](CHANGELOG.md).
