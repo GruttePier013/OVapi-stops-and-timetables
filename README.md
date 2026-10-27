@@ -4,8 +4,6 @@
 
 Live departure times of buses (and optionally trams, metros and ferries) in the Netherlands in Home Assistant, via [OVapi](https://v0.ovapi.nl). You search for stops on a map, pick a stop per direction of travel, and get sensors per stop, a map marker and settings for when to refresh. The interface is English, with a complete Dutch translation (Nederlandse vertaling).
 
-> **Upgrading from 0.9.x (`ovapi_bustijden`)?** The integration was renamed to `ovapi_bus_departures`. Home Assistant treats it as a new integration: remove the old one, install this version and add your stops again. Entity ids, attribute names and states are now English.
-
 ## Install
 
 1. HACS → ⋮ → **Custom repositories** → add `https://github.com/GruttePier013/OVapi-stops-and-timetables` as **Integration**.
