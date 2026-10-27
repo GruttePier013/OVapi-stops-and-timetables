@@ -1,0 +1,20 @@
+{
+  "domain": "ovapi_bus_departures",
+  "name": "OVapi bus times",
+  "after_dependencies": [
+    "http",
+    "person"
+  ],
+  "codeowners": [
+    "@GruttePier013"
+  ],
+  "config_flow": true,
+  "documentation": "https://github.com/GruttePier013/OVapi-stops-and-timetables",
+  "import_executor": true,
+  "integration_type": "service",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/GruttePier013/OVapi-stops-and-timetables/issues",
+  "requirements": [],
+  "single_config_entry": true,
+  "version": "1.0.0"
+}

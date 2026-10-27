@@ -1,142 +1,111 @@
 # Changelog
 
-Formaat gebaseerd op [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/).
+Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+
+## [1.0.0]
+### Changed (breaking)
+- **The integration is now English** and was renamed: folder and domain `ovapi_bustijden` -> `ovapi_bus_departures`, name *OVapi bus times*. Home Assistant treats a new domain as a new integration and cannot migrate config entries, entities or history across domains: remove the old integration and add your stops again.
+- The Dutch name stays *OVapi bussen en halteinformatie* (translation title). The action is `ovapi_bus_departures.refresh`; the empty state is `No departures` (`Geen bussen` in Dutch).
+- Dutch is now provided through translations (`translations/nl.json`): entity names, states (`No departures`/`Geen bussen`, `Refresh data`/`Data vernieuwen`), explanations and the stop selection texts follow the Home Assistant language.
+- Entity names are translated instead of forced Dutch, so entity ids follow the language at creation (for example `sensor.<stop>_departures` in English).
+- All attribute names are English: `departures`, `time`, `planned`, `minutes_until`, `delay_min`, `line`, `destination`, `destinations`, `line_name`, `direction`, `updated`, `data_age_min`, `messages`, `sources`, `line_filter`, `partial`, `missing_codes`, `failed_attempts`, `last_error`, `lines`, `count`, `persons`, `person_entities`, `nearest_m`, `upcoming`, `fetched`, `passes_in_response`, `cancelled`, `sources_ok`, `sources_total`, `explanation`, and so on.
+- The map images are `stop_marker.png` and `stop_unknown.png`; the device name uses `→` for the direction (`Voorbeeldstad, Markt → Station`) and `Stop <code>` as the fallback name.
+- The old `refresh_stops` action alias was removed; use `ovapi_bus_departures.refresh`.
+- README is English.
+
+## [0.9.2]
+### Added
+- Setting *Update minutes-until-departure every minute* (default on). Off: entities only update on a refresh or when a bus leaves (fewer state writes).
+- When the last bus has left, the stop refreshes once (daytime 06:00-22:00 only, once per transition, honouring backoff and pause).
+- Attribute `ontbrekende_codes` on *Vertrektijden* when OVapi returns nothing for a TPC code.
+
+### Changed
+- The stop list in the config flow shows a bold warning (⚠️) at the top when it was cut off at 25 directions; the list is still shown.
+- Dynamic texts of the stop selection (departure headers, counts, distance from home, "unknown") now come from the translations (NL/EN) instead of being hard-coded Dutch.
+- Attribute names harmonised to Dutch: *Afstand tot persoon* uses `persoon`, `in_zone`, `naderend`; *Opeenvolgende fouten* uses `gepauzeerd`, `max_fouten`, `laatste_fout`, `api_opeenvolgende_fouten`, `api_gepauzeerd_s`; *Gepauzeerd* uses `opeenvolgende_fouten`, `max_fouten`, `api_gepauzeerd_s`. Update templates that used the old English names.
+- Automatic refreshes of the same stop are at least 60 s apart (manual refreshes always work).
+- The first refresh at startup now honours pacing and the circuit breaker; reloading resets the pacing.
+- Checking TPC codes in the config flow is bundled into combined requests (max 40 codes) and single-code requests run at most 5 at a time.
+- Person updates that only change attributes (battery, accuracy) or move less than 5 m no longer re-evaluate the stops; untracked persons are ignored and stale reference data is cleaned up.
+- The departure list is cached per minute and departed buses are pruned from memory every minute; the number of fetched departures stays in `opgehaald`.
+- The raw OVapi response is no longer kept in memory; diagnostics fetch it when downloaded.
+- Error texts and log lines are English.
 
 ## [0.9.1]
-### Toegevoegd
-- Per halte (Halte bewerken) kun je de marker op de HA-kaart verschuiven met een kaartkiezer. Vink *Marker terugzetten* aan en verstuur om te resetten. Alleen de marker verschuift; afstanden en zones gebruiken de echte haltepositie.
+### Added
+- Per stop (edit stop) you can move the marker on the HA map with a map picker. Tick *Reset marker* and submit to reset it. Only the marker moves; distances and zones keep using the real stop position.
 
-### Gewijzigd
-- README opgeruimd en overzichtelijker: aparte kopjes voor entiteiten, instellingen, verversen en foutbeveiliging, en een tabel met de twee haltemarkers (normaal en *Data vernieuwen*).
+### Changed
+- *Vertrektijden* and the per-line sensors now always show all fetched departures. The *Departures in the attribute* setting (default 6) is removed, and the per-line `volgende` attribute lists every further departure with planned time, delay and status (was 3).
+- README reorganised: separate sections for entities, settings, refreshing and error protection, plus a table with the two stop markers (normal and *Data vernieuwen*).
 
 ## [0.9.0]
-Alle verbeteringen uit de EnBW-Laadpalen-integratie in één release.
+All improvements from the EnBW Laadpalen integration in one release.
 
-### Toegevoegd
-- **Foutbeveiliging** (sectie in Instellingen): exponentiële wachttijd per halte (60–900 s), pauze na 5 opeenvolgende fouten met een reparatiemelding en de diagnose-entiteit *Gepauzeerd*; API-stroomonderbreker (10 fouten of HTTP 429 met `Retry-After`, 60–1800 s, melding `api_paused`); minimale tussenruimte van 3 s tussen automatische aanroepen; opstart met maximaal 5 gelijktijdige haltes. Handmatig vernieuwen werkt altijd.
-- **Slimmere zonebezoeken:** één vernieuwing bij binnenkomst (minstens 60 s na de vorige), daarna op de gekozen frequentie; stoppen na 10/30/60/120 min of onbeperkt; afkoeltijd (standaard 15 min); schakelaar *Alleen vernieuwen bij naderen* (25 m dichterbij); sensor *Afstand tot persoon*.
-- **Standaardwaarden** voor nieuwe haltes (op de eerste installatie op één scherm, later in Instellingen) met *Toepassen op bestaande haltes* (standaard uit).
-- Actie `ovapi_bustijden.refresh` met doelkiezer en de knop *Alle haltes vernieuwen*; `refresh_stops` blijft als alias.
-- Diagnostics (ook per apparaat), diagnose-entiteit *Opeenvolgende fouten*, reparatiemeldingen worden opgeruimd bij uitladen.
-- `async_remove_config_entry_device`: een halte verwijderen via het apparaat verwijdert hem ook uit de configuratie.
-- Tests voor vertaal-placeholders, manifest/hacs.json, services en verboden aanroepen; mypy in CI.
+### Added
+- **Error protection** (section in Settings): per-stop exponential backoff (60-900 s); pause after 5 consecutive errors with a repair issue and a *Gepauzeerd* diagnostic entity; API circuit breaker (10 errors or HTTP 429 with `Retry-After`, 60-1800 s, `api_paused` issue); minimum 3 s spacing between automatic calls; startup limited to 5 concurrent stops. Manual refresh always works.
+- **Smarter zone visits:** one refresh on entry (at least 60 s after the previous), then the chosen interval; stop after 10/30/60/120 min or unlimited; cool-down (default 15 min); *Alleen vernieuwen bij naderen* switch (25 m closer); *Afstand tot persoon* sensor.
+- **Defaults** for new stops (one screen on first install, later in Settings) with *Apply to existing stops* (off by default).
+- Action `ovapi_bustijden.refresh` with a target picker and an *Alle haltes vernieuwen* button; `refresh_stops` stays as an alias.
+- Diagnostics (also per device), *Opeenvolgende fouten* diagnostic entity, repair issues cleaned up on unload.
+- `async_remove_config_entry_device`: removing a stop device also removes it from the configuration.
+- Tests for translation placeholders, manifest/hacs.json, services and banned calls; mypy in CI.
 
-### Gewijzigd
-- Minimale Home Assistant-versie 2026.2.0 (`hacs.json`); `import_executor` aan; geen verouderde aanroepen meer; mypy schoon.
-- Informatieve attributen worden niet meer in de recorder bewaard (`MATCH_ALL`); verouderde data wordt *onbekend* en minutelijks bijgewerkt.
-- *Halte op kaart* is een sensor met `latitude`/`longitude` en `entity_picture`; zonder `location_name`. De optie *Logo op de HA-kaart* blijft.
-- `services.yaml` gebruikt alleen een entiteitsfilter (hassfest weigert apparaatfilters).
-- Code, commentaar en docstrings zijn Engels; teksten voor gebruikers blijven Nederlands.
+### Changed
+- Minimum Home Assistant 2026.2.0 (`hacs.json`); `import_executor` enabled; no deprecated calls; mypy clean.
+- Informational attributes are excluded from the recorder (`MATCH_ALL`); stale data becomes *unknown* and is updated every minute.
+- *Halte op kaart* is a sensor with `latitude`/`longitude` and `entity_picture`, without `location_name`. The *map logo* option stays.
+- `services.yaml` uses only an entity filter (hassfest rejects device filters).
+- Code, comments and docstrings are English; user-facing text stays Dutch.
 
-### Migratie
-- De zone-instellingen (frequentie en stoptijd) zijn van getallen naar keuzelijsten gegaan; de oude waarden worden automatisch omgezet naar de dichtstbijzijnde keuze. entity_id's en unique_id's blijven gelijk.
-- De oude `device_tracker` van *Halte op kaart* is al sinds 0.8 een sensor; resterende exemplaren worden opgeruimd.
+### Migration
+- The zone settings (interval and stop time) changed from numbers to selects; old values are converted to the nearest option. entity_ids and unique_ids are unchanged.
+- Any leftover `device_tracker` of *Halte op kaart* (a sensor since 0.8) is removed.
 
-### Niet getest
-Werkelijke kaartweergave (ook het Kaart-paneel in het zijmenu), echte OVapi-/netwerkgedrag en HACS/GitHub.
+### Not tested
+Real map rendering (including the side-menu Map panel), real OVapi/network behaviour, and HACS/GitHub.
 
 ## [0.8.3]
-### Gewijzigd
-- De melding dat het certificaat van OVapi (`v0.ovapi.nl`, hostnaam komt niet overeen) niet geverifieerd kan worden staat nu op *info* in plaats van *waarschuwing*; de integratie schakelt de verificatie voor die host zelf uit, zoals eerder.
-- Repository verhuisd naar `GruttePier013/OVapi-stops-and-timetables`; manifest, README en licentie verwijzen daarheen. README is ingekort en richt zich alleen op Home Assistant-gebruikers.
-- Alle voorbeelden in README, vertalingen, documentatie en tests zijn generiek gemaakt (geen echte plaatsen, straten of TPC-codes meer).
-- Het veld *Plaatsnaam* is nu een adreszoeker (PDOK): alleen een plaats zet de kaart op het centrum van de bebouwde kom (2 km); straat + plaats zet de pin op die straat (500 m); een adres of postcode op dat punt (250 m).
-- De invoervelden *Adres* en *Coördinaten* onderaan de zoekstap zijn vervallen (de adreszoeker en de kaart vervangen ze).
-- De afstand in de haltelijst is nu de afstand tot huis (thuislocatie van Home Assistant) in km met één decimaal, met *lopen* alleen onder 2 km: `0,7 km lopen van huis`, `50,6 km van huis`. De diagnosesensor heet *Afstand tot huis* en rekent live vanaf de thuislocatie.
-- *Richting in de apparaatnaam opnemen* staat nu standaard aan (`Voorbeeldstad, Markt - ri. Station`).
+- The OVapi certificate notice (`v0.ovapi.nl`, hostname mismatch) is logged at *info*; verification for that host is still disabled automatically, with a retry after 24 h.
+- Repository moved to `GruttePier013/OVapi-stops-and-timetables`; README shortened for Home Assistant users.
+- All examples are generic (no real places, streets or TPC codes).
+- *Plaatsnaam* is now an address search (PDOK): a place centres the map (2 km), street + place puts the pin on the street (500 m), an address or postcode on that point (250 m). The *Address* and *Coordinates* fields were removed.
+- Distance in the stop list is the distance from home in km (`0,7 km lopen van huis`); the *Afstand tot huis* sensor is calculated live.
+- *Direction in device name* is on by default.
 
 ## [0.8.2]
-### Toegevoegd
-- Veld *Plaatsnaam* boven de kaart in *Haltes zoeken*: de kaart springt naar het centrum van de plaats (zoekstraal 2 km).
-- Aparte stap *Extra opties* in de configflow met richting in de naam, timeout voor verouderde data en het opnieuw downloaden van het NDOV-bestand.
-- Instructie in de README om de geschiedenis van *Halte op kaart* uit te zetten (recorder-exclude).
-
-### Gewijzigd
-- *Halte op kaart* heet nu als het apparaat (de gekozen haltenaam; entity_id `sensor.<haltenaam>`) en staat onder *Diagnose*.
-- *Opgehaalde vertrektijden* toont het aantal vertrekken dat nog in de toekomst ligt (loopt elke minuut terug; 0 = geen data meer en *Halte op kaart* gaat naar *Data vernieuwen*). Het aantal uit de laatste aanvraag staat in het attribuut `opgehaald`.
-- Sensoren per lijn staan standaard aan.
-- *Vernieuwingsfrequentie in zone* heet nu **Vernieuwen als in zone** (Engels: *Refresh when in zone*) en staat standaard uit als de halte in de thuiszone van Home Assistant ligt.
-- Nieuw integratielogo (afgeronde hoeken) en nieuwe haltemarkers: blauw met klok en grijs met vraagteken.
+- Added: *Plaatsnaam* field above the map, a separate *Extra opties* step, recorder-exclude hint in the README.
+- *Halte op kaart* is named after the device and is a diagnostic; *Opgehaalde vertrektijden* counts departures still in the future.
+- Line sensors on by default; *Vernieuwen als in zone* (off by default for stops in the home zone); new logo and stop markers.
 
 ## [0.8.1]
-### Toegevoegd
-- Sensoren per lijn (optioneel), die nieuwe lijnen vanzelf oppikken.
-- Ondersteuning voor tram, metro en veerboot (kies bij *Haltes zoeken*; het NDOV-haltebestand wordt daarvoor eenmalig opnieuw opgebouwd) en een bestemmingsfilter per halte.
-- *Vernieuwen in zone elke* (instelbaar interval, standaard 2 min).
-- Herconfiguratiestap (*Opnieuw configureren*), diagnostische gegevens, `icons.json` en een reparatiemelding bij een NDOV-haltebestand ouder dan 90 dagen.
-- Robuustheid: laatste data blijft zichtbaar na een mislukte vernieuwing, gebundelde OVapi-aanvragen, nieuwe pogingen bij tijdelijke fouten, niet-blokkerende eerste vernieuwing, één minuuttimer per halte, SSL-verificatie met terugval, CI met nieuwste Home Assistant.
-- *Halte op kaart* toont ook *Data vernieuwen* met de grijze marker als er geen enkele bus meer op de halte is.
-
-### Opgelost
-- Laden mislukte op nieuwere Home Assistant-versies (`async_extract_referenced_entity_ids` bestaat daar niet meer in `helpers.service`); de actie leest het doel nu zelf uit.
+- Added: optional per-line sensors, tram/metro/ferry support, destination filter, configurable zone interval, reconfigure step, diagnostics, `icons.json`, repair issue for an NDOV file older than 90 days.
+- Robustness: last data stays visible after a failed refresh, batched OVapi requests, retries, non-blocking first refresh, one minute timer per stop, SSL verification with fallback.
+- Fixed: loading failed on newer Home Assistant versions (`async_extract_referenced_entity_ids` removed from `helpers.service`).
 
 ## [0.8.0]
-### Toegevoegd
-- Actie `ovapi_bustijden.refresh_stops`: zonder doel alle haltes, met doel alleen de opgegeven haltes vernieuwen.
-- Instelling **Vernieuwen in zone stoppen na** (standaard 30 min).
-- Instelbare timeout voor verouderde data (standaard 12 uur), bij de installatie en in Configureren → Instellingen.
-- Status **Data vernieuwen** met doorgestreept icoon als de gegevens ouder zijn dan 12 uur (*Vertrektijden*, *Lijnen*, *Halte op kaart*), en een kaartmarker *halte met vraagteken* bij geen of verouderde busgegevens.
-- Nieuwe logo's en haltemarker; logo bovenaan de README.
-
-### Gewijzigd
-- De integratie heet nu **OVapi bussen en halteinformatie** (domein `ovapi_bustijden` ongewijzigd).
-- **Breaking:** *Halte op kaart* is nu een sensor (was device_tracker) met als status de eerstvolgende bus, bijv. `Lijn 74 om 16:01 (+2 min)`. De oude device_tracker wordt automatisch opgeruimd; pas dashboards aan naar de nieuwe sensor.
-- Namen: *Vernieuwingsfrequentie* en *Vernieuwingsfrequentie in zone*; standaard zone-radius 500 m.
+- Renamed to **OVapi bussen en halteinformatie** (domain unchanged).
+- Added: action `refresh_stops`, *stop after* setting, configurable stale-data timeout (default 12 h), *Data vernieuwen* state and unknown-stop marker, new logos.
+- **Breaking:** *Halte op kaart* became a sensor (was a device_tracker); the old tracker is removed automatically. Update dashboards.
 
 ## [0.7.0]
-### Toegevoegd
-- **Vernieuwen in zone** ververst nu elke 2 minuten zolang een gevolgd persoon in de zone is (daarvoor: één keer bij binnenkomst) en heeft een uitleg in het attribuut `uitleg`; ook bij *Zone radius*.
-- Optie in de configflow om de richting in de apparaatnaam op te nemen als `Voorbeeldstad, Markt - ri. Station` (standaard uit). Dubbele namen worden dan op windrichting onderscheiden: `Voorbeeldstad, Markt (NO)`.
+- Zone refresh repeats every 2 minutes while a person is in the zone; optional direction in the device name; one checkbox per stop in the results step.
+- *Personen nabij* shows `Geen` or names; the on/off *Persoon nabij* entity was removed.
 
-### Gewijzigd
-- Resultatenstap: één checkbox per halte met de vertrektijden eronder (helpertekst), in plaats van een apart overzicht met een nummerlijst.
-- *Personen nabij* toont `Geen` of de namen (was: het aantal). De aan/uit-entiteit *Persoon nabij* is verwijderd en wordt bij het laden uit het entiteitenregister opgeruimd.
-- Integratielogo's (`brand/`) zijn weer de oorspronkelijke transparante set, met licht afgeronde hoeken; het halte-logo op de kaart is ongewijzigd.
-
-## [0.6.2]
-### Gewijzigd
-- Het vinkje om het haltebestand te verversen toont nu de ouderdom: *NDOV data 72 dagen oud (bestand van 2026-08-12) opnieuw downloaden*, met uitleg dat de configuratie dan opnieuw begint. De ouderdom volgt de datumstempel van het bestand.
-- De dynamische tekst in de resultatenstap (vertrektijden, aantallen, voortgang) is altijd Nederlands, ook als de server-taal van Home Assistant Engels is.
-
-## [0.6.1]
-### Opgelost
-- Een door OVapi geleverde plaatsnaam `unknown` komt niet meer in de standaardnaam van een halte (`unknown, Voorbeeldstad, Voorbeeldlaan` wordt `Voorbeeldstad, Voorbeeldlaan`).
-
-## [0.6.0]
-### Toegevoegd
-- Sensor **Lijnen** (`34, 73, 350`, gesorteerd; lijst in het attribuut `lijnen`) en sensor **Personen nabij** (`Geen` of het aantal).
-- Logo op de HA-kaart (`halte_marker.png`); in *Configureren* uit te zetten. Nieuw merklogo in `brand/`.
-- NDOV-haltebestand: ouderdom wordt bijgehouden en getoond; in de resultatenlijst kun je opnieuw laten downloaden (terug naar stap 1, daarna dezelfde zone).
-
-### Gewijzigd
-- Resultatenlijst: per halte een blok (`naam · 📍 TPC · afstand lopen | windrichting` met de huidige vertrektijden per lijn, of `⚠️ Geen vertrektijden informatie`) en daaronder de checkboxes.
-- Namen: *Standaard vernieuwingsfrequentie*, *Zone radius*, *Vernieuwen in zone*, *Persoon nabij*. Bestaande entity_id's blijven ongewijzigd.
-- Integratienaam **OVapi-bushalte** (sinds 0.8.0: **OVapi bussen en halteinformatie**), fabrikant **OVapi en NDOV**, codeowner @GruttePier013.
+## [0.6.x]
+- 0.6.2: the re-download tick shows the NDOV file age; dynamic text is always Dutch.
+- 0.6.1: a place name `unknown` from OVapi is ignored in default stop names.
+- 0.6.0: *Lijnen* and *Personen nabij* sensors, map logo, NDOV file age tracking, new result list, codeowner @GruttePier013.
 
 ## [0.5.0]
-### Gewijzigd
-- Haltebron is nu het **NDOV Loket-haltebestand (CHB)** (ExportCHB + halteverwijstabel) in plaats van de OVapi-haltegebiedenlijst en GTFS. Een quay (haltepaal) is één rijrichting en wordt één apparaat; TPC-codes worden live bij OVapi gecontroleerd.
-- Configflow in drie fases met een **voortgangsring in procenten**: downloaden (±13 MB), uitpakken (±300 MB, gestreamd) en haltes zoeken.
-- Na het kiezen van een zone volgt **direct een lijst met checkboxes** (per rijrichting) in plaats van een overzichtskaartje.
-- Kaart bovenaan het zoekformulier, adres en coördinaten eronder.
-- *Halte op kaart* gebruikte het gewone `mdi:bus`-icoon; de eigen marker-afbeelding en het statische pad werden tijdelijk verwijderd (terug in 0.6.0).
-- `Pillow`, GTFS-, kaarttegel- en richtingsgroeperingscode zijn verwijderd; de `http`-afhankelijkheid is niet meer nodig.
+- Stop source is now the NDOV Loket stop file (CHB); a quay (one direction) becomes one device and TPC codes are verified live.
+- Three-phase config flow with a percentage progress ring; checkbox list right after choosing a zone.
 
 ## [0.4.0]
-### Gewijzigd
-- Configflow: de kaartkiezer heeft nu een **sleepbare zoekcirkel** rond de pin (de losse radius-invoer is vervallen).
-- Haltes worden **per rijrichting** getoond en toegevoegd: elke gekozen richting wordt een eigen apparaat; bussen met een andere eindbestemming in dezelfde richting worden samengevoegd.
-- Het overzichtskaartje gebruikt alleen OpenStreetMap-tegels: de CARTO-basemaps toonden een "API KEY REQUIRED"-watermerk. De keuze voor een kaartstijl is vervallen.
-- Het *Terug*-vinkje is uit alle stappen verwijderd.
+- Draggable search circle on the map picker; stops added per direction; OpenStreetMap tiles only.
 
 ## [0.3.0]
-### Toegevoegd
-- GitHub-workflows voor HACS-validatie, hassfest, ruff en pytest.
-- `CONFIG_SCHEMA` (alleen config entries), `hacs.json` met `country: NL`, tests die de HACS-/hassfest-vereisten bewaken.
-
-### Gewijzigd
-- `manifest.json`: sleutels gesorteerd volgens hassfest en `codeowners`, `documentation` en `issue_tracker` ingevuld (zie `scripts/set_github_user.sh`).
-- README opgeschoond voor publicatie; niet-ondersteunde sleutel `render_readme` uit `hacs.json` verwijderd.
+- GitHub workflows (HACS, hassfest, ruff, pytest), `hacs.json` with `country: NL`, sorted `manifest.json`, repository tests.
 
 ## [0.2.0]
-- Juiste OVapi-endpoint (`/tpc/<code>`), tijdzonefix, meerdere TPC-codes per halte met lijnfilter, verversschema per halte, nabijheid, kaart in de configflow en NL/EN-vertalingen.
+- Correct OVapi endpoint, timezone fix, multiple TPC codes per stop with line filter, refresh schedule per stop, proximity, map in the config flow, NL/EN translations.

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from custom_components.ovapi_bustijden.const import DOMAIN, USER_AGENT
+from custom_components.ovapi_bus_departures.const import DOMAIN, USER_AGENT
 
 ROOT = Path(__file__).resolve().parent.parent
 COMPONENTS = ROOT / "custom_components"
@@ -93,7 +93,7 @@ def test_translations_in_sync():
 
 def test_unknown_stop_marker_present():
     from PIL import Image  # noqa: PLC0415
-    im = Image.open(INTEGRATION / "static" / "halte_onbekend.png")
+    im = Image.open(INTEGRATION / "static" / "stop_unknown.png")
     assert im.size == (256, 256)
 
 
