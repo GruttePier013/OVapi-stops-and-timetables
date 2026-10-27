@@ -20,11 +20,11 @@ from pytest_homeassistant_custom_component.common import (
 )
 from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMockResponse
 
-from custom_components.ovapi_bus_departures import async_remove_config_entry_device
-from custom_components.ovapi_bus_departures import coordinator as coord_mod
-from custom_components.ovapi_bus_departures.const import DOMAIN
-from custom_components.ovapi_bus_departures.coordinator import StopCoordinator
-from custom_components.ovapi_bus_departures.diagnostics import (
+from custom_components.ovapi_bustijden import async_remove_config_entry_device
+from custom_components.ovapi_bustijden import coordinator as coord_mod
+from custom_components.ovapi_bustijden.const import DOMAIN
+from custom_components.ovapi_bustijden.coordinator import StopCoordinator
+from custom_components.ovapi_bustijden.diagnostics import (
     async_get_config_entry_diagnostics,
     async_get_device_diagnostics,
 )
@@ -91,7 +91,7 @@ async def test_api_paused_skips_automatic_refresh_and_keeps_data(hass, aioclient
     calls = aioclient_mock.call_count
     await c.async_auto_refresh()
     assert aioclient_mock.call_count == calls
-    assert hass.states.get(eid(hass, "sensor", "departures")).state == "14:07 (Line 74)"  # keeps the last data
+    assert hass.states.get(eid(hass, "sensor", "departures")).state == "14:07 (Lijn 74)"  # keeps the last data
 
 
 async def test_api_outage_creates_and_clears_repair_issue(hass, aioclient_mock):
@@ -362,16 +362,16 @@ async def test_old_zone_numbers_migrate_to_selects(hass, aioclient_mock):
 
 
 # ---------------------------------------------------------------- actions, buttons, devices
-async def test_refresh_action_with_target(hass, aioclient_mock):
+async def test_refresh_action_with_target_and_old_alias(hass, aioclient_mock):
     await _fresh_setup(hass, aioclient_mock)
-    assert hass.services.has_service(DOMAIN, "refresh")
+    assert hass.services.has_service(DOMAIN, "refresh") and hass.services.has_service(DOMAIN, "refresh_stops")
     before = aioclient_mock.call_count
     await hass.services.async_call(DOMAIN, "refresh", {}, blocking=True)  # no target: all stops
     assert aioclient_mock.call_count == before + 1
     device = dr.async_get(hass).async_get_device(identifiers={(DOMAIN, CODE)})
     await hass.services.async_call(DOMAIN, "refresh", {"device_id": device.id}, blocking=True)
     assert aioclient_mock.call_count == before + 2
-    await hass.services.async_call(DOMAIN, "refresh", {"entity_id": eid(hass, "sensor", "lines")}, blocking=True)
+    await hass.services.async_call(DOMAIN, "refresh_stops", {"entity_id": eid(hass, "sensor", "lines")}, blocking=True)
     assert aioclient_mock.call_count == before + 3
     await hass.services.async_call(DOMAIN, "refresh", {"device_id": "unknown"}, blocking=True)
     assert aioclient_mock.call_count == before + 3  # other target: nothing refreshed
@@ -401,7 +401,7 @@ async def test_removing_a_stop_device_removes_the_stop_from_the_configuration(ha
 
 # ---------------------------------------------------------------- recorder, diagnostics
 async def test_all_entities_exclude_attributes_from_the_recorder():
-    from custom_components.ovapi_bus_departures import sensor  # noqa: PLC0415
+    from custom_components.ovapi_bustijden import sensor  # noqa: PLC0415
     for cls in (sensor.NextDeparture, sensor.Departures, sensor.LineDeparture, sensor.StopOnMap, sensor.NearbyPersons):
         assert MATCH_ALL in cls._unrecorded_attributes, cls
 

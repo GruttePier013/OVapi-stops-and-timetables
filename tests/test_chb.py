@@ -3,7 +3,7 @@ import json
 
 import pytest
 
-from custom_components.ovapi_bus_departures import chb
+from custom_components.ovapi_bustijden import chb
 
 from .chb_data import A_RD, B_RD, FAR_RD, chb_xml, gz, listing_html, psa_xml
 

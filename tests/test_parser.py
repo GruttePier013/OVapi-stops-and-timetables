@@ -2,7 +2,7 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from custom_components.ovapi_bus_departures.parser import (
+from custom_components.ovapi_bustijden.parser import (
     build_view,
     clean_town,
     describe_tpc,
@@ -50,25 +50,25 @@ def view(**kw):
 
 def test_filters_cancel_arrival_only_and_past():
     v = view()
-    assert [d["line"] for d in v] == ["34", "74"] or [d["line"] for d in v][-2:] == ["34", "74"]
+    assert [d["lijn"] for d in v] == ["34", "74"] or [d["lijn"] for d in v][-2:] == ["34", "74"]
     assert all(d["status"] != "CANCEL" for d in v)
-    assert "Eindhalte" not in [d["destination"] for d in v]
-    assert "Gisteren" not in [d["destination"] for d in v]
-    assert "Net weg" in [d["destination"] for d in v]  # 30 s coulance
+    assert "Eindhalte" not in [d["bestemming"] for d in v]
+    assert "Gisteren" not in [d["bestemming"] for d in v]
+    assert "Net weg" in [d["bestemming"] for d in v]  # 30 s coulance
 
 
 def test_sorted_delay_and_minutes():
     v = view()
-    assert [d["time"] for d in v] == ["13:59", "14:03", "14:07"]
+    assert [d["tijd"] for d in v] == ["13:59", "14:03", "14:07"]
     last = v[-1]
-    assert last["planned"] == "14:05" and last["delay_min"] == 2 and last["minutes_until"] == 7
+    assert last["gepland"] == "14:05" and last["vertraging_min"] == 2 and last["over_min"] == 7
 
 
 def test_line_filter_and_limit_and_summary():
-    assert [d["line"] for d in view(lines=["74"])] == ["74"]
+    assert [d["lijn"] for d in view(lines=["74"])] == ["74"]
     assert len(view(limit=1)) == 1
-    assert summarize(view(lines=["74"])) == "14:07 (Line 74)"
-    assert summarize(view(lines=["999"])) == "No departures"
+    assert summarize(view(lines=["74"])) == "14:07 (Lijn 74)"
+    assert summarize(view(lines=["999"])) == "Geen bussen"
 
 
 def test_helpers():
@@ -85,9 +85,9 @@ def test_terminus_is_skipped_and_direction_fields():
         "TargetDepartureTime": "2026-10-21T14:12:00", "ExpectedDepartureTime": "2026-10-21T14:12:00", "TripStopStatus": "PLANNED"}
     pl["90100421"]["Passes"]["a"].update({"LineName": "Voorbeeldstad - Station", "LineDirection": "2"})
     v = build_view(parse_passes(pl, "90100421", TZ), NOW)
-    assert "Hier" not in [d["destination"] for d in v]
-    a = next(d for d in v if d["time"] == "14:07")
-    assert a["line_name"] == "Voorbeeldstad - Station" and a["direction"] == "2"
+    assert "Hier" not in [d["bestemming"] for d in v]
+    a = next(d for d in v if d["tijd"] == "14:07")
+    assert a["lijnnaam"] == "Voorbeeldstad - Station" and a["richting"] == "2"
 
 
 def test_messages_and_area_codes():
@@ -108,7 +108,7 @@ def test_parse_coordinates_variants():
 
 
 def _dep(line, dest, tijd, exp):
-    return {"line": line, "destination": dest, "time": tijd, "exp": exp}
+    return {"lijn": line, "bestemming": dest, "tijd": tijd, "exp": exp}
 
 
 def test_merged_summary_and_main_destination():
@@ -122,15 +122,15 @@ def test_merged_lines_and_sorted_lines():
     view = [_dep("34", "Voorbeeldstad Centrum", "09:03", 1), _dep("74", "Noordstad-Voorbeeldstad", "09:03", 2),
             _dep("34", "Zuidstad", "09:10", 3), _dep("58", "Noordstad-Voorbeeldstad", "09:04", 4)]
     assert merged_lines(view) == [
-        {"line": "34", "destinations": ["Voorbeeldstad Centrum", "Zuidstad"], "time": "09:03"},
-        {"line": "74", "destinations": ["Noordstad-Voorbeeldstad"], "time": "09:03"},
-        {"line": "58", "destinations": ["Noordstad-Voorbeeldstad"], "time": "09:04"},
+        {"lijn": "34", "bestemmingen": ["Voorbeeldstad Centrum", "Zuidstad"], "tijd": "09:03"},
+        {"lijn": "74", "bestemmingen": ["Noordstad-Voorbeeldstad"], "tijd": "09:03"},
+        {"lijn": "58", "bestemmingen": ["Noordstad-Voorbeeldstad"], "tijd": "09:04"},
     ]
     assert sorted_lines(["350", "73", "34", "N74", "73", "9"]) == ["9", "34", "73", "350", "N74"]
 
 
 def test_unknown_town_is_dropped_from_names():
-    from custom_components.ovapi_bus_departures.config_flow import _display_name
+    from custom_components.ovapi_bustijden.config_flow import _display_name
     assert [clean_town(x) for x in ("unknown", "Unknown", " ", None, "Voorbeeldstad")] == ["", "", "", "", "Voorbeeldstad"]
     payload = {"1": {"Stop": {"TimingPointName": "Voorbeeldstad, Voorbeeldlaan", "TimingPointTown": "unknown"}, "Passes": {}}}
     info = describe_tpc("1", payload)

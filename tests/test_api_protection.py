@@ -4,7 +4,7 @@ import time
 
 import pytest
 
-from custom_components.ovapi_bus_departures.api import DutchBusApi, OvapiBlocked
+from custom_components.ovapi_bustijden.api import DutchBusApi, OvapiBlocked
 
 URL = "https://v0.ovapi.nl/tpc/{}"
 

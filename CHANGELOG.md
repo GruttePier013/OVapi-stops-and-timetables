@@ -2,35 +2,6 @@
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [1.0.0]
-### Changed (breaking)
-- **The integration is now English** and was renamed: folder and domain `ovapi_bustijden` -> `ovapi_bus_departures`, name *OVapi bus times*. Home Assistant treats a new domain as a new integration and cannot migrate config entries, entities or history across domains: remove the old integration and add your stops again.
-- The Dutch name stays *OVapi bussen en halteinformatie* (translation title). The action is `ovapi_bus_departures.refresh`; the empty state is `No departures` (`Geen bussen` in Dutch).
-- Dutch is now provided through translations (`translations/nl.json`): entity names, states (`No departures`/`Geen bussen`, `Refresh data`/`Data vernieuwen`), explanations and the stop selection texts follow the Home Assistant language.
-- Entity names are translated instead of forced Dutch, so entity ids follow the language at creation (for example `sensor.<stop>_departures` in English).
-- All attribute names are English: `departures`, `time`, `planned`, `minutes_until`, `delay_min`, `line`, `destination`, `destinations`, `line_name`, `direction`, `updated`, `data_age_min`, `messages`, `sources`, `line_filter`, `partial`, `missing_codes`, `failed_attempts`, `last_error`, `lines`, `count`, `persons`, `person_entities`, `nearest_m`, `upcoming`, `fetched`, `passes_in_response`, `cancelled`, `sources_ok`, `sources_total`, `explanation`, and so on.
-- The map images are `stop_marker.png` and `stop_unknown.png`; the device name uses `→` for the direction (`Voorbeeldstad, Markt → Station`) and `Stop <code>` as the fallback name.
-- The old `refresh_stops` action alias was removed; use `ovapi_bus_departures.refresh`.
-- README is English.
-
-## [0.9.2]
-### Added
-- Setting *Update minutes-until-departure every minute* (default on). Off: entities only update on a refresh or when a bus leaves (fewer state writes).
-- When the last bus has left, the stop refreshes once (daytime 06:00-22:00 only, once per transition, honouring backoff and pause).
-- Attribute `ontbrekende_codes` on *Vertrektijden* when OVapi returns nothing for a TPC code.
-
-### Changed
-- The stop list in the config flow shows a bold warning (⚠️) at the top when it was cut off at 25 directions; the list is still shown.
-- Dynamic texts of the stop selection (departure headers, counts, distance from home, "unknown") now come from the translations (NL/EN) instead of being hard-coded Dutch.
-- Attribute names harmonised to Dutch: *Afstand tot persoon* uses `persoon`, `in_zone`, `naderend`; *Opeenvolgende fouten* uses `gepauzeerd`, `max_fouten`, `laatste_fout`, `api_opeenvolgende_fouten`, `api_gepauzeerd_s`; *Gepauzeerd* uses `opeenvolgende_fouten`, `max_fouten`, `api_gepauzeerd_s`. Update templates that used the old English names.
-- Automatic refreshes of the same stop are at least 60 s apart (manual refreshes always work).
-- The first refresh at startup now honours pacing and the circuit breaker; reloading resets the pacing.
-- Checking TPC codes in the config flow is bundled into combined requests (max 40 codes) and single-code requests run at most 5 at a time.
-- Person updates that only change attributes (battery, accuracy) or move less than 5 m no longer re-evaluate the stops; untracked persons are ignored and stale reference data is cleaned up.
-- The departure list is cached per minute and departed buses are pruned from memory every minute; the number of fetched departures stays in `opgehaald`.
-- The raw OVapi response is no longer kept in memory; diagnostics fetch it when downloaded.
-- Error texts and log lines are English.
-
 ## [0.9.1]
 ### Added
 - Per stop (edit stop) you can move the marker on the HA map with a map picker. Tick *Reset marker* and submit to reset it. Only the marker moves; distances and zones keep using the real stop position.

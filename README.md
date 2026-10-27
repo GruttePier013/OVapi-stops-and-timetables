@@ -1,110 +1,113 @@
-<p align="center"><img src="custom_components/ovapi_bus_departures/brand/logo@2x.png" width="220" alt="OVapi bus times"></p>
+<p align="center"><img src="custom_components/ovapi_bustijden/brand/logo@2x.png" width="220" alt="OVapi bussen en halteinformatie"></p>
 
-# OVapi busstops departures timetable
+# OVapi bussen en halteinformatie
 
-Live departure times of buses (and optionally trams, metros and ferries) in the Netherlands in Home Assistant, via [OVapi](https://v0.ovapi.nl). You search for stops on a map, pick a stop per direction of travel, and get sensors per stop, a map marker and settings for when to refresh. The interface is English, with a complete Dutch translation (Nederlandse vertaling).
+[![HACS Validate](https://github.com/GruttePier013/OVapi-stops-and-timetables/actions/workflows/validate.yml/badge.svg)](https://github.com/GruttePier013/OVapi-stops-and-timetables/actions/workflows/validate.yml)
+[![Open je Home Assistant en open deze repository in HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=GruttePier013&repository=OVapi-stops-and-timetables&category=integration)
 
-## Install
+Live vertrektijden van bussen (en optioneel tram, metro en veerboot) in Nederland in Home Assistant, via [OVapi](https://v0.ovapi.nl). Je zoekt haltes op een kaart, kiest per rijrichting een halte en krijgt per halte sensoren, een kaartmarker en instellingen voor wanneer er ververst wordt.
 
-1. HACS → ⋮ → **Custom repositories** → add `https://github.com/GruttePier013/OVapi-stops-and-timetables` as **Integration**.
-2. Download **OVapi bus times** and restart Home Assistant.
-3. Settings → Devices & services → **Add integration** → *OVapi bus times*.
+## Installeren
 
-Manual install: copy `custom_components/ovapi_bus_departures` to `config/custom_components/` and restart.
+1. HACS → ⋮ → **Aangepaste repositories** → voeg `https://github.com/GruttePier013/OVapi-stops-and-timetables` toe als **Integratie**.
+2. Download **OVapi bussen en halteinformatie** en herstart Home Assistant.
+3. Instellingen → Apparaten & services → **Integratie toevoegen** → *OVapi bussen en halteinformatie*.
 
-## Adding stops
+Handmatig kan ook: kopieer `custom_components/ovapi_bustijden` naar `config/custom_components/` en herstart.
 
-1. Choose **Search stops** (or *Enter TPC codes* if you already know the OVapi code).
-2. Type a **place** (`Voorbeeldstad`) or **street + place** (`Voorbeeldlaan Voorbeeldstad`) and press Enter. Move the pin and resize the circle by dragging its edge (50-5000 m). You can also tick tram, metro or ferry.
-3. Tick the stops. Every direction of travel is its own stop, with its distance from home and the current departures below it. The first time, the stop file from [NDOV Loket](https://data.ndovloket.nl/haltes/) is downloaded (about 13 MB, with progress in %). If more than 25 directions are found, a bold warning at the top says the list was cut off; reduce the radius to see the rest.
-4. *Extra options*: direction in the device name (on by default), after how many hours data counts as stale (default 12), and re-downloading the stop file.
-5. Per stop: name, the lines you want to see (empty = all) and optionally only certain destinations (for example `Station, Noord`).
+## Haltes toevoegen
 
-Change anything later under **Configure** (search stops, edit, remove, settings).
+1. Kies **Haltes zoeken** (of *TPC-codes invoeren* als je de OVapi-code al kent).
+2. Typ een **plaats** (`Voorbeeldstad`) of **straat + plaats** (`Voorbeeldlaan Voorbeeldstad`) en druk op Enter. Verplaats de pin en pas de cirkel aan door aan de rand te slepen (50–5000 m). Tram, metro en veerboot kun je ook aanvinken.
+3. Vink de haltes aan. Elke rijrichting is een eigen halte, met afstand tot huis en de huidige vertrektijden. De eerste keer wordt het haltebestand van [NDOV Loket](https://data.ndovloket.nl/haltes/) gedownload (±13 MB, met voortgang in %).
+4. *Extra opties*: richting in de apparaatnaam (standaard aan), na hoeveel uur data als verouderd geldt (standaard 12) en het haltebestand opnieuw downloaden.
+5. Per halte: naam, welke lijnen je wilt zien (leeg = alle) en eventueel alleen bepaalde bestemmingen (bijv. `Station, Noord`).
 
-## What you get per stop
+Later wijzig je alles via **Configureren** (haltes zoeken, bewerken, verwijderen, instellingen).
 
-**Main entities**
+## Wat krijg je per halte?
 
-| Entity | Content |
+**De belangrijkste entiteiten**
+
+| Entiteit | Inhoud |
 |---|---|
-| Departures | `14:05 (Line 74)`, `No departures` or `Refresh data`; the `departures` attribute holds time, line, destination, delay and minutes for **every** upcoming departure |
-| Next departure | timestamp of the next bus |
-| Lines | `34, 73, 350` (or `None`) |
-| Line 34, Line 73, … | next departure per line (optional); `upcoming` lists all further departures |
-| Stop on map | the map marker, with the next bus as its state |
-| Persons nearby | the followed persons inside the stop's zone |
-| Refresh (button) | refresh right now |
+| Vertrektijden | `14:05 (Lijn 74)`, `Geen bussen` of `Data vernieuwen`; het attribuut `vertrekken` bevat tijd, lijn, bestemming, vertraging en minuten |
+| Volgende vertrek | tijdstip van de eerstvolgende bus |
+| Lijnen | `34, 73, 350` (of `Geen`) |
+| Lijn 34, Lijn 73, … | volgende vertrek per lijn (optioneel, aan/uit in de instellingen) |
+| Halte op kaart | de marker op de kaart, met de eerstvolgende bus als status |
+| Personen nabij | de gevolgde personen die in de zone van de halte zijn |
+| Vernieuwen (knop) | direct verversen |
 
-**Settings per stop** (switches and selects on the device)
+**Instellingen per halte** (schakelaars en keuzelijsten op het apparaat)
 
-| Setting | Meaning |
+| Instelling | Betekenis |
 |---|---|
-| Refresh frequency | *Never* (default), daily, hourly, every 30 or 5 minutes, optionally only at rush hour |
-| Refresh when in zone | refreshes as soon as a followed person enters the zone (off if the stop is inside your home zone) |
-| Refresh only when approaching | after the first refresh, only refresh when someone got at least 25 m closer |
-| Zone radius | radius of the zone around the stop (default 500 m) |
-| Refresh frequency in zone | on entry, or every 2 / 5 / 10 / 15 min (default 5) |
-| Stop refreshing in zone after | 10 / 30 / 60 / 120 min or unlimited (default 30) |
+| Vernieuwingsfrequentie | *Nooit* (standaard), dagelijks, ieder uur, elke 30 of 5 minuten, ook alleen in de spits |
+| Vernieuwen als in zone | ververst zodra een gevolgd persoon in de zone komt (uit als de halte in je thuiszone ligt) |
+| Alleen vernieuwen bij naderen | na de eerste vernieuwing alleen verversen als iemand minstens 25 m dichterbij is |
+| Zone radius | straal van de zone rond de halte (standaard 500 m) |
+| Vernieuwingsfrequentie in zone | bij binnenkomst, of elke 2 / 5 / 10 / 15 min (standaard 5) |
+| Vernieuwen in zone stoppen na | 10 / 30 / 60 / 120 min of onbeperkt (standaard 30) |
 
-**Diagnostics:** Paused, Consecutive errors, Distance, Distance to person, Updated, Fetched departures, TPC code and stop code. The **OVapi** device has the **Refresh all stops** button.
+**Diagnose:** Gepauzeerd, Opeenvolgende fouten, Afstand, Afstand tot persoon, Bijgewerkt, Opgehaalde vertrektijden, TPC-code en haltecode. Op het apparaat **OVapi** staat de knop **Alle haltes vernieuwen**.
 
-The minutes until departure keep counting down every minute without a new request (can be switched off in the settings); departed buses disappear by themselves. When the last bus is gone, the stop refreshes once during the day (06:00-22:00).
+De minuten tot vertrek lopen elke minuut door zonder nieuwe aanvraag; vertrokken bussen verdwijnen vanzelf.
 
-## When does it refresh?
+## Wanneer wordt er ververst?
 
-By default nothing is polled. You refresh with the button, with a refresh frequency, automatically when you enter a stop's zone, or with an action:
+Standaard wordt er niet gepolld. Je ververst met de knop, met een vernieuwingsfrequentie, automatisch als je in de zone van de halte komt, of met een actie:
 
 ```yaml
-action: ovapi_bus_departures.refresh
+action: ovapi_bustijden.refresh
 target:
   entity_id:
-    - sensor.example_town_market_departures
+    - sensor.voorbeeldstad_markt_vertrektijden
 ```
 
-Without a `target` all stops are refreshed.
+Zonder `target` worden alle haltes vernieuwd. De oude actie `refresh_stops` blijft als alias werken.
 
-**Zone visit:** one refresh on entry (at least 60 s after the previous one), then the chosen interval until the stop time. A new visit only starts after the cool-down (default 15 min with nobody in the zone). Several persons share one visit. Which persons count is set under Configure → Settings (empty = all).
+**Zonebezoek:** bij binnenkomst volgt één vernieuwing (minstens 60 s na de vorige), daarna de gekozen frequentie tot de stoptijd. Een nieuw bezoek begint pas na de afkoeltijd (standaard 15 min zonder iemand in de zone). Meerdere personen delen één bezoek. Welke personen meetellen kies je onder Configureren → Instellingen (leeg = alle).
 
-**Defaults:** on first install they are on one screen, later under Configure → Settings. *Apply to existing stops* (off by default) also sets them on existing stops.
+**Standaardwaarden:** bij de eerste installatie staan ze op één scherm, later onder Configureren → Instellingen. Met *Toepassen op bestaande haltes* (standaard uit) zet je ze ook op bestaande haltes.
 
-## Error protection
+## Foutbeveiliging
 
-To avoid overloading OVapi:
+Om OVapi niet te overbelasten:
 
-- After each error a stop waits longer (60 s to 15 min). After 5 consecutive errors the stop pauses with a repair issue; the *Refresh* button always works and resumes the stop.
-- After 10 errors in total, or on HTTP 429, all automatic calls pause temporarily (60 s to 30 min).
-- Automatic calls keep at least 3 s apart, and the same stop never refreshes automatically more than once per 60 s.
+- Na elke fout wacht een halte langer (60 s tot 15 min). Na 5 fouten achter elkaar pauzeert de halte met een reparatiemelding; de knop *Vernieuwen* werkt altijd en hervat de halte.
+- Na 10 fouten in totaal, of bij HTTP 429, pauzeren alle automatische aanroepen tijdelijk (60 s tot 30 min).
+- Automatische aanroepen houden minimaal 3 s afstand.
 
-Thresholds are set under Configure → Settings → *Error protection*. After a failed refresh the last data stays visible; the `failed_attempts` and `last_error` attributes tell you why.
+De drempels stel je in onder Configureren → Instellingen → *Foutbeveiliging*. Na een mislukte vernieuwing blijft de laatste data zichtbaar; de attributen `mislukte_pogingen` en `laatste_fout` vertellen waarom.
 
-## Stop on the map
+## Halte op de kaart
 
-The *Stop on map* sensor has `latitude`, `longitude` and a logo, so it shows as a marker on the map. The marker changes appearance:
+De sensor *Halte op kaart* heeft `latitude`, `longitude` en een logo, waardoor hij als marker op de kaart staat. De marker wisselt van uiterlijk:
 
-| Marker | When |
+| Marker | Wanneer |
 |---|---|
-| <img src="custom_components/ovapi_bus_departures/static/stop_marker.png" width="56" alt="Stop marker"> | normal: current bus data available |
-| <img src="custom_components/ovapi_bus_departures/static/stop_unknown.png" width="56" alt="Stop with question mark"> | *Refresh data*: data is stale or no bus left; press *Refresh* |
+| <img src="custom_components/ovapi_bustijden/static/halte_marker.png" width="56" alt="Haltemarker"> | normaal: er zijn actuele busgegevens |
+| <img src="custom_components/ovapi_bustijden/static/halte_onbekend.png" width="56" alt="Halte met vraagteken"> | *Data vernieuwen*: gegevens verouderd of geen bus meer; druk op *Vernieuwen* |
 
-Add the marker to a map card in YAML (the visual editor only lists persons and zones):
+Voeg de marker toe aan een kaartkaart in YAML (de visuele editor toont alleen personen en zones):
 
 ```yaml
 type: map
 entities:
-  - sensor.example_town_market
+  - sensor.voorbeeldstad_markt
 default_zoom: 16
 ```
 
-**Moving the marker:** Configure → stops → edit, then drag the pin. Tick *Reset marker* and submit to reset it. Only the marker moves; distances and zones keep using the real stop position. Switch the logo off with *Use the logo on the HA map*.
+**Marker verschuiven:** Configureren → haltes → bewerken, en sleep de pin. Vink *Marker terugzetten* aan en verstuur om te resetten. Alleen de marker verschuift; afstanden en zones gebruiken de echte haltepositie. Het logo zet je uit met *Logo op de HA-kaart gebruiken*.
 
-**Note:** the **Map** panel in the sidebar only shows persons, zones and devices with a tracker; the sensor may not appear there. Use a map card on a dashboard instead. This has not been tested in a real Home Assistant.
+**Let op:** het **Kaart**-paneel in het zijmenu toont alleen personen, zones en apparaten met een tracker; de sensor verschijnt daar mogelijk niet. Gebruik dan een kaartkaart op een dashboard. Dit is niet getest in een echte Home Assistant.
 
-## Sources and limitations
+## Bronnen en beperkingen
 
-- Departures: [OVapi](https://v0.ovapi.nl) · stops: [NDOV Loket](https://data.ndovloket.nl/haltes/) · addresses: [PDOK](https://www.pdok.nl).
-- Train stations have no realtime data at OVapi and are not supported.
-- Realtime departures and informational attributes are not stored in the recorder database.
-- Problems? Download the **diagnostics** (on the integration page; locations are redacted) and open an [issue](https://github.com/GruttePier013/OVapi-stops-and-timetables/issues).
+- Vertrektijden: [OVapi](https://v0.ovapi.nl) · haltes: [NDOV Loket](https://data.ndovloket.nl/haltes/) · adressen: [PDOK](https://www.pdok.nl).
+- Treinstations hebben geen realtime gegevens bij OVapi en worden niet ondersteund.
+- Realtime vertrektijden en informatieve attributen komen niet in de recorder-database.
+- Problemen? Download de **diagnostische gegevens** (op de integratiepagina; locaties zijn afgeschermd) en maak een [issue](https://github.com/GruttePier013/OVapi-stops-and-timetables/issues).
 
-Changes: see [CHANGELOG.md](CHANGELOG.md). License: MIT.
+Wijzigingen: zie [CHANGELOG.md](CHANGELOG.md). Licentie: MIT.
