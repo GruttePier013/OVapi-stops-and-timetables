@@ -1,4 +1,4 @@
-from custom_components.ovapi_bustijden.schedules import DEFAULT_SCHEDULE, SCHEDULES, fires_at
+from custom_components.ovapi_bus_departures.schedules import DEFAULT_SCHEDULE, SCHEDULES, fires_at
 
 
 def times(key):
