@@ -1,6 +1,6 @@
 {
   "domain": "ovapi_bus_departures",
-  "name": "OVapi bus times",
+  "name": "OVapi bus departures",
   "after_dependencies": [
     "http",
     "person"

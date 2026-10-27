@@ -7,10 +7,10 @@ from homeassistant.const import EntityCategory
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 
-from custom_components.ovapi_bustijden import _async_check_ndov_age
-from custom_components.ovapi_bustijden.api import DutchBusApi
-from custom_components.ovapi_bustijden.const import DOMAIN
-from custom_components.ovapi_bustijden.diagnostics import async_get_config_entry_diagnostics
+from custom_components.ovapi_bus_departures import _async_check_ndov_age
+from custom_components.ovapi_bus_departures.api import DutchBusApi
+from custom_components.ovapi_bus_departures.const import DOMAIN
+from custom_components.ovapi_bus_departures.diagnostics import async_get_config_entry_diagnostics
 
 from .test_integration import URL, _tz, entry, passes, setup  # noqa: F401
 
@@ -25,36 +25,36 @@ async def test_no_buses_at_all_jumps_to_data_vernieuwen(hass, aioclient_mock):
     aioclient_mock.get(URL.format("90100421"), json={"90100421": {"Stop": {}, "Passes": {}}})
     await setup(hass, entry([{"tpc_codes": ["90100421"], "name": "K", **LOC}]))
     loc = hass.states.get(eid(hass, "location"))
-    assert loc.state == "Data vernieuwen" and loc.attributes["entity_picture"].endswith("/halte_onbekend.png")
+    assert loc.state == "Refresh data" and loc.attributes["entity_picture"].endswith("/stop_unknown.png")
     assert loc.attributes["icon"] == "mdi:map-marker-off"
     # tekstsensoren houden hun eigen lege-status
-    assert hass.states.get(eid(hass, "departures")).state == "Geen bussen"
-    assert hass.states.get(eid(hass, "lines")).state == "Geen"
+    assert hass.states.get(eid(hass, "departures")).state == "No departures"
+    assert hass.states.get(eid(hass, "lines")).state == "None"
 
 
 async def test_line_sensors_optional_and_dynamic(hass, aioclient_mock):
     aioclient_mock.get(URL.format("90100421"), json=passes("90100421"))
     e = entry([{"tpc_codes": ["90100421"], "name": "K"}])  # standaard aan
     await setup(hass, e)
-    s74 = hass.states.get("sensor.k_lijn_74")
+    s74 = hass.states.get("sensor.k_line_74")
     assert s74 is not None and s74.state == "2026-10-21T12:07:00+00:00"
-    assert s74.attributes["bestemming"] == "Station Centraal" and s74.attributes["over_min"] == 7
-    assert hass.states.get("sensor.k_lijn_34") is not None
+    assert s74.attributes["destination"] == "Station Centraal" and s74.attributes["minutes_until"] == 7
+    assert hass.states.get("sensor.k_line_34") is not None
     # een nieuwe lijn bij een volgende verversing krijgt vanzelf een sensor
     extra = {"j9": {"LinePublicNumber": "350", "DestinationName50": "Zuidstad",
                     "TargetDepartureTime": "2026-10-21T14:30:00", "ExpectedDepartureTime": "2026-10-21T14:30:00",
                     "TripStopStatus": "PLANNED"}}
     aioclient_mock.clear_requests()
     aioclient_mock.get(URL.format("90100421"), json=passes("90100421", extra))
-    await hass.services.async_call(DOMAIN, "refresh_stops", {}, blocking=True)
+    await hass.services.async_call(DOMAIN, "refresh", {}, blocking=True)
     await hass.async_block_till_done()
-    assert hass.states.get("sensor.k_lijn_350") is not None
+    assert hass.states.get("sensor.k_line_350") is not None
 
 
 async def test_line_sensors_can_be_switched_off(hass, aioclient_mock):
     aioclient_mock.get(URL.format("90100421"), json=passes("90100421"))
     await setup(hass, entry([{"tpc_codes": ["90100421"], "name": "K"}], line_sensors=False))
-    assert hass.states.get("sensor.k_lijn_74") is None
+    assert hass.states.get("sensor.k_line_74") is None
 
 
 async def test_last_data_stays_visible_after_failed_refresh(hass, aioclient_mock):
@@ -62,10 +62,10 @@ async def test_last_data_stays_visible_after_failed_refresh(hass, aioclient_mock
     await setup(hass, entry([{"tpc_codes": ["90100421"], "name": "K"}]))
     aioclient_mock.clear_requests()
     aioclient_mock.get(URL.format("90100421"), status=500)
-    await hass.services.async_call(DOMAIN, "refresh_stops", {}, blocking=True)
+    await hass.services.async_call(DOMAIN, "refresh", {}, blocking=True)
     st = hass.states.get(eid(hass, "departures"))
-    assert st.state == "14:07 (Lijn 74)"  # niet 'unavailable'
-    assert st.attributes["mislukte_pogingen"] == 1 and "500" in st.attributes["laatste_fout"]
+    assert st.state == "14:07 (Line 74)"  # niet 'unavailable'
+    assert st.attributes["failed_attempts"] == 1 and "500" in st.attributes["last_error"]
 
 
 async def test_retry_on_transient_error_then_success(hass, aioclient_mock, monkeypatch):
@@ -131,7 +131,7 @@ async def test_multiple_stops_share_one_request(hass, aioclient_mock):
     aioclient_mock.get(URL.format("90100421,90100422"), json=payload)
     await setup(hass, entry([{"tpc_codes": ["90100421"], "name": "A"}, {"tpc_codes": ["90100422"], "name": "B"}]))
     assert aioclient_mock.call_count == 1
-    assert hass.states.get(eid(hass, "departures", code="90100422")).state == "14:07 (Lijn 74)"
+    assert hass.states.get(eid(hass, "departures", code="90100422")).state == "14:07 (Line 74)"
 
 
 async def test_zone_selects_default_and_change(hass, aioclient_mock):
@@ -155,7 +155,7 @@ async def test_destination_filter(hass, aioclient_mock):
     aioclient_mock.get(URL.format("90100421"), json=passes("90100421"))
     await setup(hass, entry([{"tpc_codes": ["90100421"], "name": "K", "destinations": ["voorbeeldstad"]}]))
     st = hass.states.get(eid(hass, "departures"))
-    assert st.state == "14:20 (Lijn 34)" and [d["lijn"] for d in st.attributes["vertrekken"]] == ["34"]
+    assert st.state == "14:20 (Line 34)" and [d["line"] for d in st.attributes["departures"]] == ["34"]
 
 
 async def test_diagnostics_redacts_locations(hass, aioclient_mock):
@@ -221,7 +221,7 @@ async def test_zone_switch_default_off_inside_home_zone(hass, aioclient_mock):
 async def test_place_name_recenters_map_with_2km_radius(hass, monkeypatch):
     from homeassistant.data_entry_flow import FlowResultType  # noqa: PLC0415
 
-    from custom_components.ovapi_bustijden.api import get_api  # noqa: PLC0415
+    from custom_components.ovapi_bus_departures.api import get_api  # noqa: PLC0415
     calls = []
 
     kinds = iter(["woonplaats", "weg"])
@@ -265,20 +265,27 @@ async def test_map_entity_named_after_stop_and_remaining_count_decreases(hass, a
     async_fire_time_changed(hass, dt_util.utcnow())
     await hass.async_block_till_done()
     assert hass.states.get(cnt).state == "0"
-    assert hass.states.get(eid(hass, "location")).state == "Data vernieuwen"
+    assert hass.states.get(eid(hass, "location")).state == "Refresh data"
 
 
-def test_home_distance_text_one_decimal_and_walking_only_below_2km():
-    from types import SimpleNamespace  # noqa: PLC0415
-
-    from custom_components.ovapi_bustijden.config_flow import StopFlowMixin  # noqa: PLC0415
+async def test_home_distance_text_one_decimal_and_walking_only_below_2km(hass):
+    from custom_components.ovapi_bus_departures.config_flow import StopFlowMixin  # noqa: PLC0415
     flow = StopFlowMixin()
-    flow.hass = SimpleNamespace(config=SimpleNamespace(latitude=52.0, longitude=5.0))
+    flow.hass = hass
+    hass.config.latitude, hass.config.longitude = 52.0, 5.0
     near = {"lat": 52.0063, "lon": 5.0}   # ca. 700 m
     far = {"lat": 52.46, "lon": 5.0}      # ca. 51 km
+    hass.config.language = "nl"
+    await flow._async_load_texts()
     assert flow._home_distance_text(near) == "0,7 km lopen van huis"
     text = flow._home_distance_text(far)
     assert text.endswith(" km van huis") and "lopen" not in text and "," in text
+    hass.config.language = "en"
+    await flow._async_load_texts()
+    assert flow._home_distance_text(near) == "0.7 km walk from home"
+    assert flow._home_distance_text(far).endswith(" km from home")
+    truncated = flow._t("list_truncated", shown=25, total=40)
+    assert truncated.startswith("⚠️ **") and truncated.endswith("**") and "25" in truncated and "40" in truncated
 
 
 async def test_marker_override_and_reset(hass, aioclient_mock):
@@ -306,7 +313,7 @@ async def test_marker_override_and_reset(hass, aioclient_mock):
 def test_view_never_truncates_departures():
     from datetime import UTC, datetime, timedelta  # noqa: PLC0415
 
-    from custom_components.ovapi_bustijden.parser import build_view  # noqa: PLC0415
+    from custom_components.ovapi_bus_departures.parser import build_view  # noqa: PLC0415
 
     now = datetime(2026, 10, 27, 12, 0, tzinfo=UTC)
     deps = [

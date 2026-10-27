@@ -1,4 +1,4 @@
-"""OVapi bus times: departure times of buses (and trams, metro, ferries) via OVapi."""
+"""OVapi bus departures: departure times of buses (and trams, metro, ferries) via OVapi."""
 from __future__ import annotations
 
 import asyncio

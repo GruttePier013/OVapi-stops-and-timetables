@@ -99,7 +99,7 @@ class DutchBusEntity(CoordinatorEntity[StopCoordinator]):
             identifiers={(DOMAIN, coordinator.key)},
             name=coordinator.stop["name"],
             manufacturer="OVapi en NDOV",
-            model="OVapi bus times",
+            model="OVapi bus departures",
             configuration_url=url,
         )
 

@@ -150,7 +150,7 @@
         }
       },
       "menu": {
-        "title": "OVapi bus times",
+        "title": "OVapi bussen en halteinformatie",
         "menu_options": {
           "search": "Haltes zoeken in een zone op de kaart",
           "manual": "TPC-codes invoeren"

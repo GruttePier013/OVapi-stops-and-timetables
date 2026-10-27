@@ -1,10 +1,10 @@
-"""Constants for OVapi bus times."""
+"""Constants for OVapi bus departures."""
 from __future__ import annotations
 
 from homeassistant.const import Platform
 
 DOMAIN = "ovapi_bus_departures"
-NAME = "OVapi bus times"
+NAME = "OVapi bus departures"
 PLATFORMS = [
     Platform.SENSOR,
     Platform.BINARY_SENSOR,

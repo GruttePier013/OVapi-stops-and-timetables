@@ -602,5 +602,5 @@
       "message": "On: refreshes in the zone (after the first one on entry) only happen when someone got at least {meters} m closer since the previous refresh."
     }
   },
-  "title": "OVapi bus times"
+  "title": "OVapi bus departures"
 }
