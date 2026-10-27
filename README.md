@@ -1,6 +1,6 @@
 <p align="center"><img src="custom_components/ovapi_bus_departures/brand/logo@2x.png" width="220" alt="OVapi bus times"></p>
 
-# OVapi bus times
+# OVapi busstops departures timetable
 
 [![HACS Validate](https://github.com/GruttePier013/OVapi-stops-and-timetables/actions/workflows/validate.yml/badge.svg)](https://github.com/GruttePier013/OVapi-stops-and-timetables/actions/workflows/validate.yml)
 [![Open your Home Assistant instance and open this repository in HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=GruttePier013&repository=OVapi-stops-and-timetables&category=integration)
