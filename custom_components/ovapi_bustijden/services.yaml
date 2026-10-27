@@ -1,8 +1,0 @@
-refresh:
-  target:
-    entity:
-      integration: ovapi_bustijden
-refresh_stops:
-  target:
-    entity:
-      integration: ovapi_bustijden
