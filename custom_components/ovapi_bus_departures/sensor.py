@@ -15,6 +15,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
+from homeassistant.util import slugify
 
 from .const import (
     CONF_LINE_SENSORS,
@@ -22,6 +23,8 @@ from .const import (
     CONF_MINUTE_UPDATES,
     DEFAULT_LINE_SENSORS,
     DOMAIN,
+    ENTITY_ID_PREFIX,
+    ID_SUFFIX,
     OVAPI_BASE,
     STATIC_URL,
 )
@@ -87,6 +90,11 @@ class DutchBusEntity(CoordinatorEntity[StopCoordinator]):
         self._attr_translation_key = key  # for the translated options of e.g. the select
         # unique_id-formaat ongewijzigd t.o.v. 0.1.x
         self._attr_unique_id = f"{coordinator.key}_{key}"
+        platform = type(self).__module__.rsplit(".", 1)[-1]  # module names equal the platform domains
+        suffix = ID_SUFFIX.get(key, key)  # line sensors: line_<number>
+        parts = [ENTITY_ID_PREFIX, coordinator.stop["name"], suffix]
+        # slugify the whole id: a line number such as "N74" must not give an invalid (upper case) entity id
+        self.entity_id = f"{platform}.{slugify('_'.join(p for p in parts if p))}"
         loc = coordinator.location
         # 'Visit' on the device page opens the stop on a map
         url = (
@@ -123,7 +131,7 @@ class MinuteTickerMixin:
     def _signature(self) -> tuple[Any, ...]:
         c = self.coordinator  # type: ignore[attr-defined]
         view = c.view()
-        return (id(c.data), len(view), view[0]["exp"] if view else None)
+        return (c.data["fetched"] if c.data else None, len(view), view[0]["exp"] if view else None)
 
     @callback
     def _handle_tick(self) -> None:
@@ -134,6 +142,16 @@ class MinuteTickerMixin:
                 return
             self._tick_signature = signature
         self.async_write_ha_state()  # type: ignore[attr-defined]
+
+
+class ProximityMixin:
+    """Write the state when the persons near the stop change (not on every coordinator update of the stop)."""
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()  # type: ignore[misc]
+        self.async_on_remove(  # type: ignore[attr-defined]
+            self.coordinator.async_add_proximity_listener(self.async_write_ha_state)  # type: ignore[attr-defined]
+        )
 
 
 class NextDeparture(MinuteTickerMixin, DutchBusEntity, SensorEntity):
@@ -191,7 +209,7 @@ class Lines(MinuteTickerMixin, DutchBusEntity, SensorEntity):
         return {"lines": lines, "count": len(lines)}  # lijst voor code/automatiseringen
 
 
-class NearbyPersons(DutchBusEntity, SensorEntity):
+class NearbyPersons(ProximityMixin, DutchBusEntity, SensorEntity):
     """'Geen' or the names of the tracked persons within the zone radius of the stop."""
 
 
@@ -226,7 +244,7 @@ class NearbyPersons(DutchBusEntity, SensorEntity):
         }
 
 
-class DistanceToPerson(DutchBusEntity, SensorEntity):
+class DistanceToPerson(ProximityMixin, DutchBusEntity, SensorEntity):
     """Distance from the stop to the nearest followed person (rounded), also when nobody is inside the zone."""
 
     _attr_entity_category = EntityCategory.DIAGNOSTIC

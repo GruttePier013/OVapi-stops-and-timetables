@@ -23,73 +23,72 @@
       },
       "search": {
         "title": "Search stops",
-        "description": "Place the pin on the map and make the search circle larger or smaller by dragging its edge (50–5000 m, default 250 m). Below the map you see the matching coordinates and radius; they follow the pin. If you prefer an address or coordinates, enter them below (they take precedence over the pin; e.g. 52.1000, 5.1000). You then immediately get a list of the bus stops in that zone, each direction separately.",
+        "description": "Search by place name or address and press **Enter**. Then use the updated map and marker to find bus stops in a zone: move the marker or enlarge the zone (50–5000 m).",
         "data": {
-          "location": "Zone on the map",
-          "modes": "Transport types",
-          "place": "Address or place name"
+          "place": "Address or place name",
+          "location": "Zone to look for stops",
+          "modes": "Transport types"
         },
         "data_description": {
-          "modes": "Bus only by default. Tram, metro and ferry also have real-time data at OVapi.",
-          "place": "Place name only (Voorbeeldstad): the map jumps to the centre of the town (2 km radius). Street + place (Voorbeeldlaan Voorbeeldstad) or an address: the pin is placed on that street or address. Press Enter/Submit, then move the pin if needed and submit again to search for stops."
+          "modes": "Bus only by default. Tram, metro and ferry also have real-time data at OVapi."
         }
       },
       "select_stop": {
         "title": "Select stops",
-        "description": "Tick the bus stops you want to add. Each checkbox is one direction (one stop pole) with the current departures below it; buses with a different final destination in the same direction are merged. Every ticked stop becomes its own device.\n\n{found}",
+        "description": "Select the bus stops to add. Each stop becomes a device in Home Assistant.\n\n{notices}Bus stops found: {count}",
         "data": {
-          "stop_1": "{stop_1_label}",
-          "stop_2": "{stop_2_label}",
-          "stop_3": "{stop_3_label}",
-          "stop_4": "{stop_4_label}",
-          "stop_5": "{stop_5_label}",
-          "stop_6": "{stop_6_label}",
-          "stop_7": "{stop_7_label}",
-          "stop_8": "{stop_8_label}",
-          "stop_9": "{stop_9_label}",
-          "stop_10": "{stop_10_label}",
-          "stop_11": "{stop_11_label}",
-          "stop_12": "{stop_12_label}",
-          "stop_13": "{stop_13_label}",
-          "stop_14": "{stop_14_label}",
-          "stop_15": "{stop_15_label}",
-          "stop_16": "{stop_16_label}",
-          "stop_17": "{stop_17_label}",
-          "stop_18": "{stop_18_label}",
-          "stop_19": "{stop_19_label}",
-          "stop_20": "{stop_20_label}",
-          "stop_21": "{stop_21_label}",
-          "stop_22": "{stop_22_label}",
-          "stop_23": "{stop_23_label}",
-          "stop_24": "{stop_24_label}",
-          "stop_25": "{stop_25_label}"
+          "stop_1": "{stop_1_name} · 📍 TPC {stop_1_tpc} · {stop_1_km} km from home{stop_1_compass}",
+          "stop_2": "{stop_2_name} · 📍 TPC {stop_2_tpc} · {stop_2_km} km from home{stop_2_compass}",
+          "stop_3": "{stop_3_name} · 📍 TPC {stop_3_tpc} · {stop_3_km} km from home{stop_3_compass}",
+          "stop_4": "{stop_4_name} · 📍 TPC {stop_4_tpc} · {stop_4_km} km from home{stop_4_compass}",
+          "stop_5": "{stop_5_name} · 📍 TPC {stop_5_tpc} · {stop_5_km} km from home{stop_5_compass}",
+          "stop_6": "{stop_6_name} · 📍 TPC {stop_6_tpc} · {stop_6_km} km from home{stop_6_compass}",
+          "stop_7": "{stop_7_name} · 📍 TPC {stop_7_tpc} · {stop_7_km} km from home{stop_7_compass}",
+          "stop_8": "{stop_8_name} · 📍 TPC {stop_8_tpc} · {stop_8_km} km from home{stop_8_compass}",
+          "stop_9": "{stop_9_name} · 📍 TPC {stop_9_tpc} · {stop_9_km} km from home{stop_9_compass}",
+          "stop_10": "{stop_10_name} · 📍 TPC {stop_10_tpc} · {stop_10_km} km from home{stop_10_compass}",
+          "stop_11": "{stop_11_name} · 📍 TPC {stop_11_tpc} · {stop_11_km} km from home{stop_11_compass}",
+          "stop_12": "{stop_12_name} · 📍 TPC {stop_12_tpc} · {stop_12_km} km from home{stop_12_compass}",
+          "stop_13": "{stop_13_name} · 📍 TPC {stop_13_tpc} · {stop_13_km} km from home{stop_13_compass}",
+          "stop_14": "{stop_14_name} · 📍 TPC {stop_14_tpc} · {stop_14_km} km from home{stop_14_compass}",
+          "stop_15": "{stop_15_name} · 📍 TPC {stop_15_tpc} · {stop_15_km} km from home{stop_15_compass}",
+          "stop_16": "{stop_16_name} · 📍 TPC {stop_16_tpc} · {stop_16_km} km from home{stop_16_compass}",
+          "stop_17": "{stop_17_name} · 📍 TPC {stop_17_tpc} · {stop_17_km} km from home{stop_17_compass}",
+          "stop_18": "{stop_18_name} · 📍 TPC {stop_18_tpc} · {stop_18_km} km from home{stop_18_compass}",
+          "stop_19": "{stop_19_name} · 📍 TPC {stop_19_tpc} · {stop_19_km} km from home{stop_19_compass}",
+          "stop_20": "{stop_20_name} · 📍 TPC {stop_20_tpc} · {stop_20_km} km from home{stop_20_compass}",
+          "stop_21": "{stop_21_name} · 📍 TPC {stop_21_tpc} · {stop_21_km} km from home{stop_21_compass}",
+          "stop_22": "{stop_22_name} · 📍 TPC {stop_22_tpc} · {stop_22_km} km from home{stop_22_compass}",
+          "stop_23": "{stop_23_name} · 📍 TPC {stop_23_tpc} · {stop_23_km} km from home{stop_23_compass}",
+          "stop_24": "{stop_24_name} · 📍 TPC {stop_24_tpc} · {stop_24_km} km from home{stop_24_compass}",
+          "stop_25": "{stop_25_name} · 📍 TPC {stop_25_tpc} · {stop_25_km} km from home{stop_25_compass}"
         },
         "data_description": {
-          "stop_1": "{stop_1_info}",
-          "stop_2": "{stop_2_info}",
-          "stop_3": "{stop_3_info}",
-          "stop_4": "{stop_4_info}",
-          "stop_5": "{stop_5_info}",
-          "stop_6": "{stop_6_info}",
-          "stop_7": "{stop_7_info}",
-          "stop_8": "{stop_8_info}",
-          "stop_9": "{stop_9_info}",
-          "stop_10": "{stop_10_info}",
-          "stop_11": "{stop_11_info}",
-          "stop_12": "{stop_12_info}",
-          "stop_13": "{stop_13_info}",
-          "stop_14": "{stop_14_info}",
-          "stop_15": "{stop_15_info}",
-          "stop_16": "{stop_16_info}",
-          "stop_17": "{stop_17_info}",
-          "stop_18": "{stop_18_info}",
-          "stop_19": "{stop_19_info}",
-          "stop_20": "{stop_20_info}",
-          "stop_21": "{stop_21_info}",
-          "stop_22": "{stop_22_info}",
-          "stop_23": "{stop_23_info}",
-          "stop_24": "{stop_24_info}",
-          "stop_25": "{stop_25_info}"
+          "stop_1": "Current OVapi departures:\n\n{stop_1_rows}",
+          "stop_2": "Current OVapi departures:\n\n{stop_2_rows}",
+          "stop_3": "Current OVapi departures:\n\n{stop_3_rows}",
+          "stop_4": "Current OVapi departures:\n\n{stop_4_rows}",
+          "stop_5": "Current OVapi departures:\n\n{stop_5_rows}",
+          "stop_6": "Current OVapi departures:\n\n{stop_6_rows}",
+          "stop_7": "Current OVapi departures:\n\n{stop_7_rows}",
+          "stop_8": "Current OVapi departures:\n\n{stop_8_rows}",
+          "stop_9": "Current OVapi departures:\n\n{stop_9_rows}",
+          "stop_10": "Current OVapi departures:\n\n{stop_10_rows}",
+          "stop_11": "Current OVapi departures:\n\n{stop_11_rows}",
+          "stop_12": "Current OVapi departures:\n\n{stop_12_rows}",
+          "stop_13": "Current OVapi departures:\n\n{stop_13_rows}",
+          "stop_14": "Current OVapi departures:\n\n{stop_14_rows}",
+          "stop_15": "Current OVapi departures:\n\n{stop_15_rows}",
+          "stop_16": "Current OVapi departures:\n\n{stop_16_rows}",
+          "stop_17": "Current OVapi departures:\n\n{stop_17_rows}",
+          "stop_18": "Current OVapi departures:\n\n{stop_18_rows}",
+          "stop_19": "Current OVapi departures:\n\n{stop_19_rows}",
+          "stop_20": "Current OVapi departures:\n\n{stop_20_rows}",
+          "stop_21": "Current OVapi departures:\n\n{stop_21_rows}",
+          "stop_22": "Current OVapi departures:\n\n{stop_22_rows}",
+          "stop_23": "Current OVapi departures:\n\n{stop_23_rows}",
+          "stop_24": "Current OVapi departures:\n\n{stop_24_rows}",
+          "stop_25": "Current OVapi departures:\n\n{stop_25_rows}"
         }
       },
       "stop_details": {
@@ -139,12 +138,12 @@
         "title": "Extra options",
         "description": "Final settings for the chosen stops.",
         "data": {
-          "direction_in_name": "Include the direction in the device name (→ …)",
+          "direction_in_name": "Include the direction in the device name (to …)",
           "stale_hours": "Hours before bus data counts as outdated",
           "refresh_ndov": "NDOV data {ndov_days} days old (file of {ndov_date}): download again"
         },
         "data_description": {
-          "direction_in_name": "On by default. Off: just the stop name (for example Voorbeeldstad, Markt); on: Voorbeeldstad, Markt → Station.",
+          "direction_in_name": "On by default. Off: just the stop name (for example Voorbeeldstad, Markt); on: Voorbeeldstad, Markt to Station.",
           "stale_hours": "Default 12 hours. After that stops show 'Data vernieuwen' and a stop icon with a question mark. Change later under Configure → Settings.",
           "refresh_ndov": "Select this if the new or changed stop is not in the list. The configuration then starts over with the download."
         }
@@ -161,7 +160,7 @@
       "address_not_found": "Address not found by PDOK.",
       "cannot_connect": "Connection failed (PDOK or OVapi). See the log.",
       "tpc_not_found": "OVapi doesn't know this TPC code. Check the code; you can test it at v0.ovapi.nl/tpc/ followed by the code.",
-      "invalid_tpc": "No valid TPC code found.",
+      "invalid_tpc": "No valid TPC code found (at most 20 codes).",
       "no_selection": "Choose at least one direction.",
       "place_not_found": "Place or address not found at PDOK."
     },
@@ -183,73 +182,72 @@
     "step": {
       "search": {
         "title": "Search stops",
-        "description": "Place the pin on the map and make the search circle larger or smaller by dragging its edge (50–5000 m, default 250 m). Below the map you see the matching coordinates and radius; they follow the pin. If you prefer an address or coordinates, enter them below (they take precedence over the pin; e.g. 52.1000, 5.1000). You then immediately get a list of the bus stops in that zone, each direction separately.",
+        "description": "Search by place name or address and press **Enter**. Then use the updated map and marker to find bus stops in a zone: move the marker or enlarge the zone (50–5000 m).",
         "data": {
-          "location": "Zone on the map",
-          "modes": "Transport types",
-          "place": "Address or place name"
+          "place": "Address or place name",
+          "location": "Zone to look for stops",
+          "modes": "Transport types"
         },
         "data_description": {
-          "modes": "Bus only by default. Tram, metro and ferry also have real-time data at OVapi.",
-          "place": "Place name only (Voorbeeldstad): the map jumps to the centre of the town (2 km radius). Street + place (Voorbeeldlaan Voorbeeldstad) or an address: the pin is placed on that street or address. Press Enter/Submit, then move the pin if needed and submit again to search for stops."
+          "modes": "Bus only by default. Tram, metro and ferry also have real-time data at OVapi."
         }
       },
       "select_stop": {
         "title": "Select stops",
-        "description": "Tick the bus stops you want to add. Each checkbox is one direction (one stop pole) with the current departures below it; buses with a different final destination in the same direction are merged. Every ticked stop becomes its own device.\n\n{found}",
+        "description": "Select the bus stops to add. Each stop becomes a device in Home Assistant.\n\n{notices}Bus stops found: {count}",
         "data": {
-          "stop_1": "{stop_1_label}",
-          "stop_2": "{stop_2_label}",
-          "stop_3": "{stop_3_label}",
-          "stop_4": "{stop_4_label}",
-          "stop_5": "{stop_5_label}",
-          "stop_6": "{stop_6_label}",
-          "stop_7": "{stop_7_label}",
-          "stop_8": "{stop_8_label}",
-          "stop_9": "{stop_9_label}",
-          "stop_10": "{stop_10_label}",
-          "stop_11": "{stop_11_label}",
-          "stop_12": "{stop_12_label}",
-          "stop_13": "{stop_13_label}",
-          "stop_14": "{stop_14_label}",
-          "stop_15": "{stop_15_label}",
-          "stop_16": "{stop_16_label}",
-          "stop_17": "{stop_17_label}",
-          "stop_18": "{stop_18_label}",
-          "stop_19": "{stop_19_label}",
-          "stop_20": "{stop_20_label}",
-          "stop_21": "{stop_21_label}",
-          "stop_22": "{stop_22_label}",
-          "stop_23": "{stop_23_label}",
-          "stop_24": "{stop_24_label}",
-          "stop_25": "{stop_25_label}"
+          "stop_1": "{stop_1_name} · 📍 TPC {stop_1_tpc} · {stop_1_km} km from home{stop_1_compass}",
+          "stop_2": "{stop_2_name} · 📍 TPC {stop_2_tpc} · {stop_2_km} km from home{stop_2_compass}",
+          "stop_3": "{stop_3_name} · 📍 TPC {stop_3_tpc} · {stop_3_km} km from home{stop_3_compass}",
+          "stop_4": "{stop_4_name} · 📍 TPC {stop_4_tpc} · {stop_4_km} km from home{stop_4_compass}",
+          "stop_5": "{stop_5_name} · 📍 TPC {stop_5_tpc} · {stop_5_km} km from home{stop_5_compass}",
+          "stop_6": "{stop_6_name} · 📍 TPC {stop_6_tpc} · {stop_6_km} km from home{stop_6_compass}",
+          "stop_7": "{stop_7_name} · 📍 TPC {stop_7_tpc} · {stop_7_km} km from home{stop_7_compass}",
+          "stop_8": "{stop_8_name} · 📍 TPC {stop_8_tpc} · {stop_8_km} km from home{stop_8_compass}",
+          "stop_9": "{stop_9_name} · 📍 TPC {stop_9_tpc} · {stop_9_km} km from home{stop_9_compass}",
+          "stop_10": "{stop_10_name} · 📍 TPC {stop_10_tpc} · {stop_10_km} km from home{stop_10_compass}",
+          "stop_11": "{stop_11_name} · 📍 TPC {stop_11_tpc} · {stop_11_km} km from home{stop_11_compass}",
+          "stop_12": "{stop_12_name} · 📍 TPC {stop_12_tpc} · {stop_12_km} km from home{stop_12_compass}",
+          "stop_13": "{stop_13_name} · 📍 TPC {stop_13_tpc} · {stop_13_km} km from home{stop_13_compass}",
+          "stop_14": "{stop_14_name} · 📍 TPC {stop_14_tpc} · {stop_14_km} km from home{stop_14_compass}",
+          "stop_15": "{stop_15_name} · 📍 TPC {stop_15_tpc} · {stop_15_km} km from home{stop_15_compass}",
+          "stop_16": "{stop_16_name} · 📍 TPC {stop_16_tpc} · {stop_16_km} km from home{stop_16_compass}",
+          "stop_17": "{stop_17_name} · 📍 TPC {stop_17_tpc} · {stop_17_km} km from home{stop_17_compass}",
+          "stop_18": "{stop_18_name} · 📍 TPC {stop_18_tpc} · {stop_18_km} km from home{stop_18_compass}",
+          "stop_19": "{stop_19_name} · 📍 TPC {stop_19_tpc} · {stop_19_km} km from home{stop_19_compass}",
+          "stop_20": "{stop_20_name} · 📍 TPC {stop_20_tpc} · {stop_20_km} km from home{stop_20_compass}",
+          "stop_21": "{stop_21_name} · 📍 TPC {stop_21_tpc} · {stop_21_km} km from home{stop_21_compass}",
+          "stop_22": "{stop_22_name} · 📍 TPC {stop_22_tpc} · {stop_22_km} km from home{stop_22_compass}",
+          "stop_23": "{stop_23_name} · 📍 TPC {stop_23_tpc} · {stop_23_km} km from home{stop_23_compass}",
+          "stop_24": "{stop_24_name} · 📍 TPC {stop_24_tpc} · {stop_24_km} km from home{stop_24_compass}",
+          "stop_25": "{stop_25_name} · 📍 TPC {stop_25_tpc} · {stop_25_km} km from home{stop_25_compass}"
         },
         "data_description": {
-          "stop_1": "{stop_1_info}",
-          "stop_2": "{stop_2_info}",
-          "stop_3": "{stop_3_info}",
-          "stop_4": "{stop_4_info}",
-          "stop_5": "{stop_5_info}",
-          "stop_6": "{stop_6_info}",
-          "stop_7": "{stop_7_info}",
-          "stop_8": "{stop_8_info}",
-          "stop_9": "{stop_9_info}",
-          "stop_10": "{stop_10_info}",
-          "stop_11": "{stop_11_info}",
-          "stop_12": "{stop_12_info}",
-          "stop_13": "{stop_13_info}",
-          "stop_14": "{stop_14_info}",
-          "stop_15": "{stop_15_info}",
-          "stop_16": "{stop_16_info}",
-          "stop_17": "{stop_17_info}",
-          "stop_18": "{stop_18_info}",
-          "stop_19": "{stop_19_info}",
-          "stop_20": "{stop_20_info}",
-          "stop_21": "{stop_21_info}",
-          "stop_22": "{stop_22_info}",
-          "stop_23": "{stop_23_info}",
-          "stop_24": "{stop_24_info}",
-          "stop_25": "{stop_25_info}"
+          "stop_1": "Current OVapi departures:\n\n{stop_1_rows}",
+          "stop_2": "Current OVapi departures:\n\n{stop_2_rows}",
+          "stop_3": "Current OVapi departures:\n\n{stop_3_rows}",
+          "stop_4": "Current OVapi departures:\n\n{stop_4_rows}",
+          "stop_5": "Current OVapi departures:\n\n{stop_5_rows}",
+          "stop_6": "Current OVapi departures:\n\n{stop_6_rows}",
+          "stop_7": "Current OVapi departures:\n\n{stop_7_rows}",
+          "stop_8": "Current OVapi departures:\n\n{stop_8_rows}",
+          "stop_9": "Current OVapi departures:\n\n{stop_9_rows}",
+          "stop_10": "Current OVapi departures:\n\n{stop_10_rows}",
+          "stop_11": "Current OVapi departures:\n\n{stop_11_rows}",
+          "stop_12": "Current OVapi departures:\n\n{stop_12_rows}",
+          "stop_13": "Current OVapi departures:\n\n{stop_13_rows}",
+          "stop_14": "Current OVapi departures:\n\n{stop_14_rows}",
+          "stop_15": "Current OVapi departures:\n\n{stop_15_rows}",
+          "stop_16": "Current OVapi departures:\n\n{stop_16_rows}",
+          "stop_17": "Current OVapi departures:\n\n{stop_17_rows}",
+          "stop_18": "Current OVapi departures:\n\n{stop_18_rows}",
+          "stop_19": "Current OVapi departures:\n\n{stop_19_rows}",
+          "stop_20": "Current OVapi departures:\n\n{stop_20_rows}",
+          "stop_21": "Current OVapi departures:\n\n{stop_21_rows}",
+          "stop_22": "Current OVapi departures:\n\n{stop_22_rows}",
+          "stop_23": "Current OVapi departures:\n\n{stop_23_rows}",
+          "stop_24": "Current OVapi departures:\n\n{stop_24_rows}",
+          "stop_25": "Current OVapi departures:\n\n{stop_25_rows}"
         }
       },
       "stop_details": {
@@ -367,12 +365,12 @@
         "title": "Extra options",
         "description": "Final settings for the chosen stops.",
         "data": {
-          "direction_in_name": "Include the direction in the device name (→ …)",
+          "direction_in_name": "Include the direction in the device name (to …)",
           "stale_hours": "Hours before bus data counts as outdated",
           "refresh_ndov": "NDOV data {ndov_days} days old (file of {ndov_date}): download again"
         },
         "data_description": {
-          "direction_in_name": "On by default. Off: just the stop name (for example Voorbeeldstad, Markt); on: Voorbeeldstad, Markt → Station.",
+          "direction_in_name": "On by default. Off: just the stop name (for example Voorbeeldstad, Markt); on: Voorbeeldstad, Markt to Station.",
           "stale_hours": "Default 12 hours. After that stops show 'Data vernieuwen' and a stop icon with a question mark. Change later under Configure → Settings.",
           "refresh_ndov": "Select this if the new or changed stop is not in the list. The configuration then starts over with the download."
         }
@@ -382,7 +380,7 @@
       "address_not_found": "Address not found by PDOK.",
       "cannot_connect": "Connection failed (PDOK or OVapi). See the log.",
       "tpc_not_found": "OVapi doesn't know this TPC code. Check the code; you can test it at v0.ovapi.nl/tpc/ followed by the code.",
-      "invalid_tpc": "No valid TPC code found.",
+      "invalid_tpc": "No valid TPC code found (at most 20 codes).",
       "no_selection": "Choose at least one direction.",
       "place_not_found": "Place or address not found at PDOK."
     },
@@ -553,29 +551,11 @@
     }
   },
   "exceptions": {
-    "current_departures": {
-      "message": "Current OVapi departures:"
-    },
-    "no_departure_info": {
-      "message": "⚠️ No departure information"
-    },
-    "directions_found_one": {
-      "message": "{count} direction found."
-    },
-    "directions_found": {
-      "message": "{count} directions found."
-    },
     "stops_without_live_data": {
       "message": "{count} stops without live data at OVapi are not shown."
     },
     "list_truncated": {
       "message": "⚠️ **The list is truncated: the nearest {shown} of {total} directions are shown. Reduce the search radius to see the rest.**"
-    },
-    "walking_from_home": {
-      "message": "{km} km walk from home"
-    },
-    "from_home": {
-      "message": "{km} km from home"
     },
     "unknown": {
       "message": "unknown"

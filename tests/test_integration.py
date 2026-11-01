@@ -211,9 +211,9 @@ async def test_schedule_select_controls_refreshes(hass, aioclient_mock, freezer)
 
 async def test_schedule_restored_after_restart(hass, aioclient_mock):
     aioclient_mock.get(URL.format("90100421"), json=passes("90100421"))
-    mock_restore_cache(hass, [State("select.k_refresh_frequency", "hourly")])
+    mock_restore_cache(hass, [State("select.ovapi_k_refresh_frequency", "hourly")])
     await setup(hass, entry([{"tpc_codes": ["90100421"], "name": "K"}]))
-    assert hass.states.get("select.k_refresh_frequency").state == "hourly"
+    assert hass.states.get("select.ovapi_k_refresh_frequency").state == "hourly"
 
 
 async def test_diagnostic_count_map_url_and_location(hass, aioclient_mock):
@@ -351,20 +351,20 @@ async def test_dutch_names_and_single_location_entity(hass, aioclient_mock):
     e = entry([{"tpc_codes": ["90100421"], "name": "Voorbeeldstad, Voorbeeldlaan"}])
     await setup(hass, e)
     ids = {st.entity_id: st for st in hass.states.async_all() if st.entity_id.split(".")[0] in ("sensor", "select", "number", "switch", "button", "binary_sensor", "device_tracker")}
-    for expected in ("sensor.voorbeeldstad_voorbeeldlaan_departures", "sensor.voorbeeldstad_voorbeeldlaan_next_departure",
-                     "select.voorbeeldstad_voorbeeldlaan_refresh_frequency", "button.voorbeeldstad_voorbeeldlaan_refresh",
-                     "number.voorbeeldstad_voorbeeldlaan_zone_radius", "switch.voorbeeldstad_voorbeeldlaan_refresh_when_in_zone",
-                     "sensor.voorbeeldstad_voorbeeldlaan_lines", "sensor.voorbeeldstad_voorbeeldlaan_persons_nearby",
-                     "sensor.voorbeeldstad_voorbeeldlaan",
-                     "select.voorbeeldstad_voorbeeldlaan_stop_refreshing_in_zone_after",
-                     "select.voorbeeldstad_voorbeeldlaan_refresh_frequency_in_zone",
-                     "switch.voorbeeldstad_voorbeeldlaan_refresh_only_when_approaching",
-                     "binary_sensor.voorbeeldstad_voorbeeldlaan_paused",
-                     "sensor.voorbeeldstad_voorbeeldlaan_distance_to_person"):
+    for expected in ("sensor.ovapi_voorbeeldstad_voorbeeldlaan_departures", "sensor.ovapi_voorbeeldstad_voorbeeldlaan_next_departure",
+                     "select.ovapi_voorbeeldstad_voorbeeldlaan_refresh_frequency", "button.ovapi_voorbeeldstad_voorbeeldlaan_refresh",
+                     "number.ovapi_voorbeeldstad_voorbeeldlaan_zone_radius", "switch.ovapi_voorbeeldstad_voorbeeldlaan_refresh_when_in_zone",
+                     "sensor.ovapi_voorbeeldstad_voorbeeldlaan_lines", "sensor.ovapi_voorbeeldstad_voorbeeldlaan_persons_nearby",
+                     "sensor.ovapi_voorbeeldstad_voorbeeldlaan",
+                     "select.ovapi_voorbeeldstad_voorbeeldlaan_stop_refreshing_in_zone_after",
+                     "select.ovapi_voorbeeldstad_voorbeeldlaan_refresh_frequency_in_zone",
+                     "switch.ovapi_voorbeeldstad_voorbeeldlaan_refresh_only_when_approaching",
+                     "binary_sensor.ovapi_voorbeeldstad_voorbeeldlaan_paused",
+                     "sensor.ovapi_voorbeeldstad_voorbeeldlaan_distance_to_person"):
         assert expected in ids, expected
     # precies één entiteit met een positie => één marker op de kaart, met het OVapi bussen en haltelogo i.p.v. initialen
     with_pos = [x for x in ids.values() if "latitude" in x.attributes]
-    assert [x.entity_id for x in with_pos] == ["sensor.voorbeeldstad_voorbeeldlaan"]
+    assert [x.entity_id for x in with_pos] == ["sensor.ovapi_voorbeeldstad_voorbeeldlaan"]
     assert with_pos[0].attributes["entity_picture"] == "/ovapi_bus_departures_static/stop_marker.png"
     from pathlib import Path  # noqa: PLC0415
     assert (Path(__file__).parent.parent / "custom_components/ovapi_bus_departures/static/stop_marker.png").is_file()
@@ -525,20 +525,21 @@ async def test_flow_downloads_unpacks_and_lists_stops(hass, aioclient_mock, tmp_
     # direct een lijst met checkboxes (één per halte); geen kaartje, geen apart overzicht meer
     assert r["step_id"] == "select_stop" and "overview" not in r["description_placeholders"]
     ph = r["description_placeholders"]
-    assert ph["found"].startswith("3 richtingen gevonden.") and "1 haltes zonder live gegevens" in ph["found"]
+    assert ph["count"] == "3" and "1 haltes zonder live gegevens" in ph["notices"]
     fields = r["data_schema"].schema
     assert [str(k) for k in fields] == ["stop_1", "stop_2", "stop_3"]  # alleen de checkboxen; de rest staat in een eigen stap
     assert all(k.default() is False for k in fields)
-    # checkbox = halte, TPC, afstand lopen | windrichting; eronder (helpertekst) de huidige vertrektijden per lijn
-    labels = [ph[f"stop_{i}_label"] for i in (1, 2, 3)]
-    infos = [ph[f"stop_{i}_info"] for i in (1, 2, 3)]
-    i_first = next(i for i, label in enumerate(labels) if "90100411, 90100451" in label)
-    i_other = next(i for i, label in enumerate(labels) if "TPC 90100412" in label)
-    assert re.fullmatch(r"Voorbeeldlaan · 📍 TPC 90100411, 90100451 · \d+,\d km (lopen )?van huis \| ZW ↙", labels[i_first])
-    assert infos[i_first].startswith("Huidige vertrektijden OVapi:\n\n- 🚌 **74** → Station Centraal · 14:07")
-    assert "- 🚌 **73** → Voorbeeldstad Centrum · 14:09" in infos[i_first]  # beide vervoerders op dezelfde paal samengevoegd
-    assert "NO ↗" in labels[i_other] and "- 🚌 **74** → Noordstad · 14:12" in infos[i_other]  # overkant = eigen richting
-    assert any("Voorbeeldweg" in label for label in labels)
+    # checkbox = halte, TPC, afstand | windrichting (vaste woorden uit de vertaling); eronder de vertrektijden per lijn
+    names = [ph[f"stop_{i}_name"] for i in (1, 2, 3)]
+    tpcs = [ph[f"stop_{i}_tpc"] for i in (1, 2, 3)]
+    rows = [ph[f"stop_{i}_rows"] for i in (1, 2, 3)]
+    i_first = next(i for i, t in enumerate(tpcs) if t == "90100411, 90100451")
+    i_other = next(i for i, t in enumerate(tpcs) if t == "90100412")
+    assert re.fullmatch(r"\d+\.\d", ph[f"stop_{i_first + 1}_km"]) and ph[f"stop_{i_first + 1}_compass"] == " | ZW ↙"
+    assert rows[i_first].startswith("- 🚌 **74** → Station Centraal · 14:07")
+    assert "- 🚌 **73** → Voorbeeldstad Centrum · 14:09" in rows[i_first]  # beide vervoerders op dezelfde paal samengevoegd
+    assert "NO ↗" in ph[f"stop_{i_other + 1}_compass"] and "- 🚌 **74** → Noordstad · 14:12" in rows[i_other]  # overkant = eigen richting
+    assert any("Voorbeeldweg" in n for n in names)
 
     # beide richtingen van de Voorbeeldlaan aanvinken, met richting in de naam -> twee apparaten
     r = await hass.config_entries.flow.async_configure(
@@ -556,9 +557,9 @@ async def test_flow_downloads_unpacks_and_lists_stops(hass, aioclient_mock, tmp_
     assert r["description_placeholders"]["progress"] == "Richting 2 van 2"
     r = await hass.config_entries.flow.async_configure(r["flow_id"], {"name": "", "lines": ["74"], "extra_lines": ""})
     first_stop, second_stop = sorted(r["data"]["stops"], key=lambda x: x["tpc_codes"])
-    assert first_stop["name"] == "Voorbeeldstad, Voorbeeldlaan → Station Centraal"  # afgekort: ' → '
+    assert first_stop["name"] == "Voorbeeldstad, Voorbeeldlaan to Station Centraal"  # afgekort: ' to '
     assert first_stop["tpc_codes"] == ["90100411", "90100451"] and first_stop["stop_code"] == "NL:Q:90100411"
-    assert second_stop["name"] == "Voorbeeldstad, Voorbeeldlaan → Noordstad" and second_stop["lines"] == ["74"]
+    assert second_stop["name"] == "Voorbeeldstad, Voorbeeldlaan to Noordstad" and second_stop["lines"] == ["74"]
     assert second_stop["tpc_codes"] == ["90100412"] and second_stop["distance_m"] > 1_000_000  # afstand tot huis (testhuis ligt ver weg)
 
     # alleen NDOV Loket en OVapi-TPC's: geen GTFS, haltegebiedenlijst of kaarttegels
@@ -686,7 +687,7 @@ async def test_results_step_offers_ndov_refresh_and_flags_missing_departures(has
     r = await _advance_to_form(hass, r, phases)
     assert phases == ["load_stops"] and not any("ndovloket" in str(c[1]) for c in aioclient_mock.mock_calls)
     ph = r["description_placeholders"]
-    assert ph["stop_1_info"] == "⚠️ Geen vertrektijden informatie"
+    assert ph["stop_1_rows"] == "⚠️ –"
     r = await hass.config_entries.flow.async_configure(r["flow_id"], {"stop_1": True})
     assert r["step_id"] == "extra_options"
     assert (r["description_placeholders"]["ndov_days"], r["description_placeholders"]["ndov_date"]) == ("20", "2026-10-01")
@@ -712,13 +713,14 @@ def test_checkbox_translations_cover_every_possible_stop():
         for flow in ("config", "options"):
             step = d[flow]["step"]["select_stop"]
             for i in range(1, PREVIEW_MAX_STOPS + 1):
-                assert step["data"][f"stop_{i}"] == f"{{stop_{i}_label}}"        # halte, TPC, afstand, windrichting
-                assert step["data_description"][f"stop_{i}"] == f"{{stop_{i}_info}}"  # vertrektijden eronder
+                label, info = step["data"][f"stop_{i}"], step["data_description"][f"stop_{i}"]
+                assert all(f"{{stop_{i}_{k}}}" in label for k in ("name", "tpc", "km", "compass"))  # halte, TPC, afstand, windrichting
+                assert f"{{stop_{i}_rows}}" in info  # vertrektijden eronder
             extra = d[flow]["step"]["extra_options"]
             assert "{ndov_days}" in extra["data"]["refresh_ndov"] and "{ndov_date}" in extra["data"]["refresh_ndov"]
             assert extra["data"]["direction_in_name"] and extra["data_description"]["refresh_ndov"]
-            assert "{found}" in step["description"]
-            assert "→" in extra["data"]["direction_in_name"] or "→" in extra["data_description"]["direction_in_name"]
+            assert "{count}" in step["description"] and "{notices}" in step["description"]
+            assert " to " in extra["data"]["direction_in_name"] or " to " in extra["data_description"]["direction_in_name"]
 
 
 async def test_names_without_direction_by_default_and_compass_when_duplicate(hass, aioclient_mock, tmp_path):
@@ -733,13 +735,13 @@ async def test_names_without_direction_by_default_and_compass_when_duplicate(has
     r = await hass.config_entries.flow.async_configure(r["flow_id"], {"location": ZONE})
     r = await _advance_to_form(hass, r)
     ph = r["description_placeholders"]
-    both = [i for i in (1, 2, 3) if "Voorbeeldlaan" in ph[f"stop_{i}_label"]]
+    both = [i for i in (1, 2, 3) if "Voorbeeldlaan" in ph[f"stop_{i}_name"]]
     r = await hass.config_entries.flow.async_configure(r["flow_id"], {f"stop_{i}": True for i in both})
     r = await hass.config_entries.flow.async_configure(r["flow_id"], {})  # extra opties: alles standaard
     r = await hass.config_entries.flow.async_configure(r["flow_id"], {"name": "", "lines": [], "extra_lines": ""})
     r = await hass.config_entries.flow.async_configure(r["flow_id"], {"name": "", "lines": [], "extra_lines": ""})
-    assert sorted(x["name"] for x in r["data"]["stops"]) == ["Voorbeeldstad, Voorbeeldlaan → Noordstad", "Voorbeeldstad, Voorbeeldlaan → Station Centraal"]
-    assert all("→" in x["name"] for x in r["data"]["stops"])  # richting in de naam staat standaard aan
+    assert sorted(x["name"] for x in r["data"]["stops"]) == ["Voorbeeldstad, Voorbeeldlaan to Noordstad", "Voorbeeldstad, Voorbeeldlaan to Station Centraal"]
+    assert all(" to " in x["name"] for x in r["data"]["stops"])  # richting in de naam staat standaard aan
 
 
 def test_brand_logos_are_transparent_with_rounded_corners():

@@ -21,7 +21,7 @@ from collections.abc import Callable, Iterable, Iterator
 from datetime import date
 from pathlib import Path
 from typing import Any, cast
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 from .parser import distance_m
 
@@ -29,6 +29,7 @@ LISTING_URLS = ("https://data.ndovloket.nl/haltes/", "http://data.ndovloket.nl/h
 INDEX_VERSION = 2  # 2: bevat ook tram, metro en veerboot (kolom 9 = vervoerstypen)
 MODES = ("bus", "tram", "metro", "boat")
 CHUNK = 1 << 18
+MAX_UNPACKED_BYTES = 2 * 1024**3  # the real file unpacks to ~300 MB; refuse a gzip bomb
 
 _CHB_LINK = re.compile(r'href="([^"]*?(?<![A-Za-z])ExportCHB_(\d{4}-\d{2}-\d{2})\.xml\.gz)"')
 _PSA_LINK = re.compile(r'href="([^"]*?PassengerStopAssignmentExportCHB_(\d{4}-\d{2}-\d{2})\.xml\.gz)"')
@@ -82,7 +83,11 @@ def parse_listing(html: str, base: str) -> tuple[str, str | None, str]:
         raise ValueError("No ExportCHB file found in the NDOV Loket listing")
     psa_all = _PSA_LINK.findall(html)
     psa = max([m for m in psa_all if m[1] == chb[1]] or psa_all, key=lambda m: m[1], default=None)
-    return urljoin(base, chb[0]), (urljoin(base, psa[0]) if psa else None), chb[1]
+    chb_url, psa_url = urljoin(base, chb[0]), (urljoin(base, psa[0]) if psa else None)
+    host = urlparse(base).hostname
+    if any(urlparse(u).hostname != host for u in (chb_url, psa_url) if u):
+        raise ValueError("The NDOV Loket listing points to another host")  # only download from the host we asked
+    return chb_url, psa_url, chb[1]
 
 
 def _ln(tag: str) -> str:
@@ -98,11 +103,18 @@ def _iter_xml(path: Path, progress: Progress | None) -> Iterator[ET.Element]:
     size = max(path.stat().st_size, 1)
     parser: ET.XMLPullParser[ET.Element] = ET.XMLPullParser(events=("end",))
     inflater = zlib.decompressobj(zlib.MAX_WBITS | 16)  # gzip
-    done, last = 0, -1.0
+    done, last, unpacked = 0, -1.0, 0
     with path.open("rb") as fh:
         while chunk := fh.read(CHUNK):
             done += len(chunk)
-            parser.feed(inflater.decompress(chunk))
+            data = chunk
+            while data:  # bounded output per step and in total: a gzip bomb cannot fill the memory
+                out = inflater.decompress(data, CHUNK * 4)
+                unpacked += len(out)
+                if unpacked > MAX_UNPACKED_BYTES:
+                    raise ValueError("The stop file unpacks to more than expected")
+                parser.feed(out)
+                data = inflater.unconsumed_tail
             for _event, el in cast("Iterator[tuple[str, ET.Element]]", parser.read_events()):
                 yield el
             fraction = done / size
@@ -195,7 +207,7 @@ def parse_psa(path: Path, progress: Progress | None = None, today: str | None = 
         groups = [_flat(c) for c in el if len(c) and "quaycode" in _flat(c)] or [base]
         for g in groups:
             quay, thru = g.get("quaycode", ""), g.get("validthru", "")
-            if quay and user_stop.isdigit() and not (thru and thru < today):
+            if quay and user_stop.isascii() and user_stop.isdigit() and not (thru and thru < today):
                 out.setdefault(quay, set()).add(user_stop)
         el.clear()
     return {quay: sorted(codes) for quay, codes in out.items()}

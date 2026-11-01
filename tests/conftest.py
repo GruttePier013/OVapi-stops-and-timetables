@@ -35,3 +35,10 @@ def _no_empty_refresh(monkeypatch):
     from custom_components.ovapi_bus_departures import coordinator  # noqa: PLC0415
     monkeypatch.setattr(coordinator, "DAY_START_HOUR", 0)
     monkeypatch.setattr(coordinator, "DAY_END_HOUR", 0)
+
+
+@pytest.fixture(autouse=True)
+def _no_manual_gap(monkeypatch):
+    """The 10 s minimum between manual refreshes would block tests that refresh repeatedly; one test covers it."""
+    from custom_components.ovapi_bus_departures import coordinator  # noqa: PLC0415
+    monkeypatch.setattr(coordinator, "MANUAL_MIN_GAP", 0)

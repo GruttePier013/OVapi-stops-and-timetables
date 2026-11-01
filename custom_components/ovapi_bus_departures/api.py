@@ -24,6 +24,7 @@ from .const import (
     CHB_INDEX_MAX_AGE,
     DOMAIN,
     INSECURE_RETRY_AFTER,
+    MAX_DOWNLOAD_BYTES,
     MAX_PARALLEL_REQUESTS,
     OVAPI_BASE,
     PDOK_URL,
@@ -103,6 +104,7 @@ class DutchBusApi:
         self._blocked_until = 0.0
         self._was_outage = False
         self._pace_lock = asyncio.Lock()
+        self._chb_lock = asyncio.Lock()  # one download/unpack at a time (shared temporary files)
         self._last_call = 0.0
         # called with True/False when the outage state changes (used for the repair issue)
         self.on_outage_change: Callable[[bool], None] | None = None
@@ -217,9 +219,12 @@ class DutchBusApi:
         raise AddressNotFound(text)
 
     # ------------------------------------------------------------------ OVapi
-    async def _ovapi_request(self, session: Any, path: str, timeout: int) -> Any:
+    async def _ovapi_request(self, session: Any, path: str, timeout: int, *, verified: bool = True) -> Any:
         async with session.get(
-            f"{OVAPI_BASE}/{path}", headers=HEADERS, timeout=ClientTimeout(total=timeout)
+            f"{OVAPI_BASE}/{path}",
+            headers=HEADERS,
+            timeout=ClientTimeout(total=timeout),
+            allow_redirects=verified,  # never follow redirects on the unverified connection
         ) as r:
             r.raise_for_status()
             data = await r.json(content_type=None)
@@ -230,13 +235,13 @@ class DutchBusApi:
     async def _ovapi_get_once(self, path: str, timeout: int) -> Any:
         """First with certificate verification; only on an SSL error (known issue of v0.ovapi.nl) without."""
         if self._insecure_since is not None and time.monotonic() - self._insecure_since < INSECURE_RETRY_AFTER:
-            return await self._ovapi_request(self._ovapi_session, path, timeout)
+            return await self._ovapi_request(self._ovapi_session, path, timeout, verified=False)
         try:
             data = await self._ovapi_request(self.session, path, timeout)
         except (ClientSSLError, ssl.SSLError, ssl.CertificateError) as err:
             _LOGGER.info("OVapi certificate not verified (%s); verification is skipped for this host", err)
             self._insecure_since = time.monotonic()
-            return await self._ovapi_request(self._ovapi_session, path, timeout)
+            return await self._ovapi_request(self._ovapi_session, path, timeout, verified=False)
         self._insecure_since = None
         return data
 
@@ -262,6 +267,8 @@ class DutchBusApi:
 
     async def async_fetch_tpcs(self, codes: list[str], timeout: int = REQUEST_TIMEOUT, retries: int = 0) -> dict[str, Any]:
         """GET /tpc/<c1>,<c2>,… (recommended by OVapi: one request for several codes)."""
+        if not codes or not all(c.isascii() and c.isdigit() for c in codes):
+            raise ValueError("TPC codes must be numeric")  # also keeps anything but digits out of the request path
         return await self._ovapi_get(f"tpc/{','.join(codes)}", timeout, retries)
 
     async def async_fetch_tpc(self, code: str, timeout: int = REQUEST_TIMEOUT, retries: int = 0) -> dict[str, Any]:
@@ -325,8 +332,9 @@ class DutchBusApi:
                     self._record_failure(self._retry_after(err))
                     results.update(dict.fromkeys(chunk, err))
                     continue
-                if len(chunk) == 1:
-                    results[chunk[0]] = err
+                if len(chunk) == 1 or self._transient(err):
+                    # a failing or unreachable server: asking per code would only multiply the requests
+                    results.update(dict.fromkeys(chunk, err))
                     self._record_failure()
                     continue
                 _LOGGER.debug("Combined request failed (%s), retrying per code", err)
@@ -452,32 +460,37 @@ class DutchBusApi:
             async with self.session.get(url, headers=headers, timeout=ClientTimeout(total=1800, sock_read=120)) as r:
                 r.raise_for_status()
                 total, done = _content_length(r), 0
+                if total > MAX_DOWNLOAD_BYTES:
+                    raise ValueError("Download is larger than expected")
                 fh = await job(tmp.open, "wb")
                 try:
                     async for chunk in r.content.iter_chunked(1 << 18):
-                        await job(fh.write, chunk)
                         done += len(chunk)
+                        if done > MAX_DOWNLOAD_BYTES:
+                            raise ValueError("Download is larger than expected")
+                        await job(fh.write, chunk)
                         if progress and total:
                             progress(min(done / total, 1.0))
                 finally:
                     await job(fh.close)
             await job(tmp.replace, dest)
-        except Exception:
-            await job(lambda: tmp.unlink(missing_ok=True))
+        except BaseException:  # also on cancel (the flow was closed): no half-written file left behind
+            await asyncio.shield(job(lambda: tmp.unlink(missing_ok=True)))
             raise
         if progress:
             progress(1.0)
 
     async def async_download_chb(self, progress: Progress | None = None) -> None:
         """Download ExportCHB (~13 MB) and the stop lookup table (~1 MB) from NDOV Loket; progress 0 → 1."""
-        chb_url, psa_url, self._source_date = await self._async_chb_urls()
-        weight = 0.93 if psa_url else 1.0
-        await self._async_download(chb_url, self.chb_gz, scaled(progress, 0.0, weight))
-        if psa_url:
-            try:
-                await self._async_download(psa_url, self.psa_gz, scaled(progress, weight, 1.0))
-            except Exception as err:  # noqa: BLE001
-                _LOGGER.warning("Stop lookup table not downloaded (%s); only the quay number is tried as TPC", err)
+        async with self._chb_lock:
+            chb_url, psa_url, self._source_date = await self._async_chb_urls()
+            weight = 0.93 if psa_url else 1.0
+            await self._async_download(chb_url, self.chb_gz, scaled(progress, 0.0, weight))
+            if psa_url:
+                try:
+                    await self._async_download(psa_url, self.psa_gz, scaled(progress, weight, 1.0))
+                except Exception as err:  # noqa: BLE001
+                    _LOGGER.warning("Stop lookup table not downloaded (%s); only the quay number is tried as TPC", err)
         if progress:
             progress(1.0)
 
@@ -493,10 +506,11 @@ class DutchBusApi:
             psa = self.psa_gz if self.psa_gz.exists() else None
             return chb.build_index(self.chb_gz, psa, self.index_path, report, self._source_date)
 
-        try:
-            return await self.hass.async_add_executor_job(build)
-        finally:
-            await self.hass.async_add_executor_job(self._remove_download_files)
+        async with self._chb_lock:
+            try:
+                return await self.hass.async_add_executor_job(build)
+            finally:
+                await self.hass.async_add_executor_job(self._remove_download_files)
 
     def _remove_download_files(self) -> None:
         for path in (self.chb_gz, self.psa_gz):

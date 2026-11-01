@@ -2,9 +2,12 @@
 
 # OVapi bus departures
 
+[![HACS Validate](https://github.com/GruttePier013/OVapi-stops-and-timetables/actions/workflows/validate.yml/badge.svg)](https://github.com/GruttePier013/OVapi-stops-and-timetables/actions/workflows/validate.yml)
 [![Open your Home Assistant instance and open this repository in HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=GruttePier013&repository=OVapi-stops-and-timetables&category=integration)
 
 Live departure times of buses (and optionally trams, metros and ferries) in the Netherlands in Home Assistant, via [OVapi](https://v0.ovapi.nl). You search for stops on a map, pick a stop per direction of travel, and get sensors per stop, a map marker and settings for when to refresh. The interface is English, with a complete Dutch translation (Nederlandse vertaling).
+
+> **Upgrading from 0.9.x (`ovapi_bustijden`)?** The integration was renamed to `ovapi_bus_departures`. Home Assistant treats it as a new integration: remove the old one, install this version and add your stops again. Entity ids, attribute names and states are now English.
 
 ## Install
 
@@ -61,10 +64,10 @@ By default nothing is polled. You refresh with the button, with a refresh freque
 action: ovapi_bus_departures.refresh
 target:
   entity_id:
-    - sensor.example_town_market_departures
+    - sensor.ovapi_example_town_market_departures
 ```
 
-Without a `target` all stops are refreshed.
+Without a `target` all stops are refreshed. A stop ignores a second manual refresh within 10 seconds, so an automation that accidentally calls it in a loop cannot hammer OVapi.
 
 **Zone visit:** one refresh on entry (at least 60 s after the previous one), then the chosen interval until the stop time. A new visit only starts after the cool-down (default 15 min with nobody in the zone). Several persons share one visit. Which persons count is set under Configure → Settings (empty = all).
 
@@ -94,7 +97,7 @@ Add the marker to a map card in YAML (the visual editor only lists persons and z
 ```yaml
 type: map
 entities:
-  - sensor.example_town_market
+  - sensor.ovapi_example_town_market
 default_zoom: 16
 ```
 

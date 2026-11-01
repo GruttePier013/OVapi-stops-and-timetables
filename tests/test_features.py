@@ -36,10 +36,10 @@ async def test_line_sensors_optional_and_dynamic(hass, aioclient_mock):
     aioclient_mock.get(URL.format("90100421"), json=passes("90100421"))
     e = entry([{"tpc_codes": ["90100421"], "name": "K"}])  # standaard aan
     await setup(hass, e)
-    s74 = hass.states.get("sensor.k_line_74")
+    s74 = hass.states.get("sensor.ovapi_k_line_74")
     assert s74 is not None and s74.state == "2026-10-21T12:07:00+00:00"
     assert s74.attributes["destination"] == "Station Centraal" and s74.attributes["minutes_until"] == 7
-    assert hass.states.get("sensor.k_line_34") is not None
+    assert hass.states.get("sensor.ovapi_k_line_34") is not None
     # een nieuwe lijn bij een volgende verversing krijgt vanzelf een sensor
     extra = {"j9": {"LinePublicNumber": "350", "DestinationName50": "Zuidstad",
                     "TargetDepartureTime": "2026-10-21T14:30:00", "ExpectedDepartureTime": "2026-10-21T14:30:00",
@@ -48,13 +48,13 @@ async def test_line_sensors_optional_and_dynamic(hass, aioclient_mock):
     aioclient_mock.get(URL.format("90100421"), json=passes("90100421", extra))
     await hass.services.async_call(DOMAIN, "refresh", {}, blocking=True)
     await hass.async_block_till_done()
-    assert hass.states.get("sensor.k_line_350") is not None
+    assert hass.states.get("sensor.ovapi_k_line_350") is not None
 
 
 async def test_line_sensors_can_be_switched_off(hass, aioclient_mock):
     aioclient_mock.get(URL.format("90100421"), json=passes("90100421"))
     await setup(hass, entry([{"tpc_codes": ["90100421"], "name": "K"}], line_sensors=False))
-    assert hass.states.get("sensor.k_line_74") is None
+    assert hass.states.get("sensor.ovapi_k_line_74") is None
 
 
 async def test_last_data_stays_visible_after_failed_refresh(hass, aioclient_mock):
@@ -107,7 +107,7 @@ async def test_ssl_error_falls_back_once_and_retries_secure_later(hass, monkeypa
     api = DutchBusApi(hass)
     calls = []
 
-    async def fake_request(session, path, timeout):
+    async def fake_request(session, path, timeout, **_kw):
         secure = session is api.session
         calls.append(secure)
         if secure:
@@ -254,7 +254,7 @@ async def test_map_entity_named_after_stop_and_remaining_count_decreases(hass, a
     aioclient_mock.get(URL.format("90100421"), json=passes("90100421"))
     await setup(hass, entry([{"tpc_codes": ["90100421"], "name": "Voorbeeldstad, Markt", **LOC}]))
     st = hass.states.get(eid(hass, "location"))
-    assert st.entity_id == "sensor.voorbeeldstad_markt" and st.attributes["friendly_name"] == "Voorbeeldstad, Markt"
+    assert st.entity_id == "sensor.ovapi_voorbeeldstad_markt" and st.attributes["friendly_name"] == "Voorbeeldstad, Markt"
     cnt = eid(hass, "fetched_departures")
     assert hass.states.get(cnt).state == "2"
     freezer.move_to("2026-10-21 14:10:00+02:00")  # bus 74 (14:07) is weg
@@ -268,22 +268,12 @@ async def test_map_entity_named_after_stop_and_remaining_count_decreases(hass, a
     assert hass.states.get(eid(hass, "location")).state == "Refresh data"
 
 
-async def test_home_distance_text_one_decimal_and_walking_only_below_2km(hass):
+async def test_list_truncated_text_is_bold_with_warning(hass):
     from custom_components.ovapi_bus_departures.config_flow import StopFlowMixin  # noqa: PLC0415
     flow = StopFlowMixin()
     flow.hass = hass
-    hass.config.latitude, hass.config.longitude = 52.0, 5.0
-    near = {"lat": 52.0063, "lon": 5.0}   # ca. 700 m
-    far = {"lat": 52.46, "lon": 5.0}      # ca. 51 km
     hass.config.language = "nl"
     await flow._async_load_texts()
-    assert flow._home_distance_text(near) == "0,7 km lopen van huis"
-    text = flow._home_distance_text(far)
-    assert text.endswith(" km van huis") and "lopen" not in text and "," in text
-    hass.config.language = "en"
-    await flow._async_load_texts()
-    assert flow._home_distance_text(near) == "0.7 km walk from home"
-    assert flow._home_distance_text(far).endswith(" km from home")
     truncated = flow._t("list_truncated", shown=25, total=40)
     assert truncated.startswith("⚠️ **") and truncated.endswith("**") and "25" in truncated and "40" in truncated
 

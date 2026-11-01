@@ -27,6 +27,7 @@ from .const import (
     DEFAULT_ZONE_COOLDOWN,
     DOMAIN,
     GRACE_SECONDS,
+    MANUAL_MIN_GAP,
     MIN_APPROACH_REFRESH_GAP,
     STOP_BACKOFF_BASE,
     STOP_BACKOFF_MAX,
@@ -109,6 +110,7 @@ class StopCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._backoff_until = 0.0  # monotonic; automatic refreshes wait until then
         self._auto = False
         self._tick_listeners: set[CALLBACK_TYPE] = set()
+        self._proximity_listeners: set[CALLBACK_TYPE] = set()
         self._unsub_tick: CALLBACK_TYPE | None = None
         self.last_fetch_monotonic: float = -1e9
         self._view_cache: tuple[int, dict[str, Any], list[dict[str, Any]]] | None = None
@@ -135,9 +137,22 @@ class StopCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         await self.async_refresh()
 
     async def async_manual_refresh(self) -> None:
-        """Manual refresh (button, action, startup): bypasses pause, backoff and pacing; success resumes a paused stop."""
+        """Manual refresh (button, action): bypasses pause, backoff and pacing; success resumes a paused stop.
+
+        A short minimum gap protects OVapi (and the stop) against automations that call this in a loop,
+        for example one triggered by the state change that a refresh itself causes.
+        """
+        if time.monotonic() - self.last_fetch_monotonic < MANUAL_MIN_GAP:
+            _LOGGER.debug("Manual refresh of %s skipped (refreshed less than %s s ago)", self.key, MANUAL_MIN_GAP)
+            return
         self._auto = False
         await self.async_refresh()
+
+    def _start_auto_refresh(self) -> None:
+        """Run an automatic refresh in the background; it is cancelled when the entry unloads."""
+        self.entry.async_create_background_task(
+            self.hass, self.async_auto_refresh(), f"{DOMAIN} automatic refresh {self.key}"
+        )
 
     # ---- refreshing in the zone: one 'visit' with a window
     #  - first person inside: refresh once (real entries only, at least MIN_APPROACH_REFRESH_GAP after the previous one)
@@ -202,7 +217,7 @@ class StopCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._visit_start = dt_util.utcnow()
         self.approach_pending = False  # the entry refresh covers the approach so far
         if trigger and time.monotonic() - self.last_fetch_monotonic >= MIN_APPROACH_REFRESH_GAP:
-            self.hass.async_create_task(self.async_auto_refresh())
+            self._start_auto_refresh()
         self._start_window()
         self._start_interval()
 
@@ -250,11 +265,20 @@ class StopCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         return remove
 
     @callback
+    def async_add_proximity_listener(self, cb: CALLBACK_TYPE) -> CALLBACK_TYPE:
+        """Called when the persons near the stop change; only the proximity entities listen to this."""
+        self._proximity_listeners.add(cb)
+        return lambda: self._proximity_listeners.discard(cb)
+
+    @callback
     def _handle_tick(self, now: datetime) -> None:
         self._prune_departed(now)
         self._refresh_when_empty(now)
         for cb in list(self._tick_listeners):
-            cb()
+            try:
+                cb()
+            except Exception:  # noqa: BLE001 - one failing entity must not stop the others
+                _LOGGER.exception("Updating an entity of %s failed", self.key)
 
     def _prune_departed(self, now: datetime) -> None:
         """Drop departures that left (beyond the grace period) so they are not filtered again every minute."""
@@ -275,7 +299,7 @@ class StopCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         elif self._had_departures:
             self._had_departures = False  # once per transition, so an empty answer cannot cause a loop
             if DAY_START_HOUR <= dt_util.as_local(now).hour < DAY_END_HOUR:
-                self.hass.async_create_task(self.async_auto_refresh())
+                self._start_auto_refresh()
 
     # ---- refresh schedule (set by the select entity)
     def set_schedule(self, key: str) -> None:
@@ -303,6 +327,8 @@ class StopCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if self._unsub_tick is not None:
             self._unsub_tick()
             self._unsub_tick = None
+        self._tick_listeners.clear()
+        self._proximity_listeners.clear()
         await super().async_shutdown()
 
     async def _async_update_data(self) -> dict[str, Any]:
@@ -314,6 +340,10 @@ class StopCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         except UpdateFailed as err:
             self._register_error(str(err))
             raise
+        except Exception as err:  # noqa: BLE001 - e.g. an unexpected OVapi answer: count it like any other error
+            _LOGGER.debug("Unexpected error while fetching %s", self.key, exc_info=True)
+            self._register_error(f"{type(err).__name__}: {err}")
+            raise UpdateFailed(f"Unexpected error: {err}") from err
         self._register_success()
         return data
 
@@ -473,7 +503,8 @@ class StopCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self._visit_enter(trigger)
             elif not nearby and not was_empty:
                 self._visit_leave()
-        self.async_update_listeners()
+        for cb in list(self._proximity_listeners):
+            cb()
 
     def age_minutes(self) -> int | None:
         if not self.data:

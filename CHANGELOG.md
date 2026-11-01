@@ -2,16 +2,39 @@
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.0.1]
+### Fixed
+- Line sensors for lines with letters (for example `N74`) got an invalid, upper case entity id; Home Assistant warned this stops working in 2027.2. All entity ids are now slugified as a whole.
+- An unexpected error while processing an OVapi answer is now counted like any other failed refresh (backoff, pause, repair issue) instead of retrying without limit.
+- Unicode digits in a line number (for example `²`) no longer break the line sorting.
+
+### Changed
+- Moving persons no longer rewrite every entity of every stop: only *Persons nearby* and *Distance to person* are written when the proximity changes (fewer state writes and recorder load).
+- A manual refresh (button or action) of the same stop is ignored within 10 seconds of the previous fetch. This stops automations that refresh on a state change of the stop itself from looping against OVapi.
+- Automatic refreshes started by the zone or by an empty stop run as background tasks of the entry and are cancelled when it unloads.
+- When the combined OVapi request fails because the server is down or unreachable, the stop codes are no longer requested one by one (that multiplied the requests during an outage).
+- One failing entity can no longer stop the minute update of the other entities of a stop; a broken translation can no longer break an entity or the config flow.
+- Diagnostics also redact addresses, coordinates and marker positions and fetch the stops in parallel.
+
+### Security
+- TPC codes must be numeric before they are put in a request path; a stop has at most 20 codes.
+- The unverified OVapi connection (certificate problem of `v0.ovapi.nl`) no longer follows redirects.
+- The NDOV Loket stop file: downloads are limited to 200 MB, unpacking to 2 GB (protection against a gzip bomb), and the listing may only point to the host it came from.
+- Names from OVapi/NDOV are escaped before they are shown as Markdown in the config flow.
+- Closing the config flow while the stop file downloads cancels the download and removes the partial file; parallel flows no longer write the same temporary files.
+
 ## [1.0.0]
 ### Changed (breaking)
 - **The integration is now English** and was renamed: folder and domain `ovapi_bustijden` -> `ovapi_bus_departures`, name *OVapi bus departures*. Home Assistant treats a new domain as a new integration and cannot migrate config entries, entities or history across domains: remove the old integration and add your stops again.
 - The Dutch name stays *OVapi bussen en halteinformatie* (translation title). The action is `ovapi_bus_departures.refresh`; the empty state is `No departures` (`Geen bussen` in Dutch).
 - Dutch is now provided through translations (`translations/nl.json`): entity names, states (`No departures`/`Geen bussen`, `Refresh data`/`Data vernieuwen`), explanations and the stop selection texts follow the Home Assistant language.
-- Entity names are translated instead of forced Dutch, so entity ids follow the language at creation (for example `sensor.<stop>_departures` in English).
+- Every entity id now starts with `ovapi_` and is language-independent: `sensor.ovapi_<stop>_departures`, `sensor.ovapi_<stop>_next_departure`, `button.ovapi_refresh_all_stops`, and so on. Entity names are still translated.
 - All attribute names are English: `departures`, `time`, `planned`, `minutes_until`, `delay_min`, `line`, `destination`, `destinations`, `line_name`, `direction`, `updated`, `data_age_min`, `messages`, `sources`, `line_filter`, `partial`, `missing_codes`, `failed_attempts`, `last_error`, `lines`, `count`, `persons`, `person_entities`, `nearest_m`, `upcoming`, `fetched`, `passes_in_response`, `cancelled`, `sources_ok`, `sources_total`, `explanation`, and so on.
-- The map images are `stop_marker.png` and `stop_unknown.png`; the device name uses `→` for the direction (`Voorbeeldstad, Markt → Station`) and `Stop <code>` as the fallback name.
+- The map images are `stop_marker.png` and `stop_unknown.png`; the device name uses `to` for the direction (`Voorbeeldstad, Markt to Station`) and `Stop <code>` as the fallback name.
+- The *Select stops* step is fully translated by your profile language (intro, count, `km from home` / `km van huis`, departure header); the "walking" wording was dropped. A stop without live data shows `⚠️ –`.
 - The old `refresh_stops` action alias was removed; use `ovapi_bus_departures.refresh`.
 - README is English.
+- The *Search stops* step has shorter texts: search by place or address and press Enter, then use the map and marker to pick the zone.
 
 ## [0.9.2]
 ### Added

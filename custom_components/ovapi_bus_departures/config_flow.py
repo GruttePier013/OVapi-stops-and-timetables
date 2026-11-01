@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from typing import TYPE_CHECKING, Any, cast
 
 import voluptuous as vol
@@ -55,6 +56,7 @@ from .const import (
     DEFAULT_ZONE_COOLDOWN,
     DOMAIN,
     MAX_RADIUS,
+    MAX_TPC_CODES,
     MIN_RADIUS,
     MODES,
     NAME,
@@ -183,10 +185,18 @@ def _display_name(info: dict[str, Any] | None, fallback: str) -> str:
 
 
 def _candidate_name(candidate: dict[str, Any], with_direction: bool = False) -> str:
-    """'Voorbeeldstad, Markt' of, met richting, 'Voorbeeldstad, Markt → Station'."""
+    """'Voorbeeldstad, Markt' of, met richting, 'Voorbeeldstad, Markt to Station'."""
     base = _display_name(candidate, f"Stop {candidate['tpc']}")
     destination = candidate.get("destination")
-    return f"{base} → {destination}" if with_direction and destination else base
+    return f"{base} to {destination}" if with_direction and destination else base
+
+
+_MARKDOWN_SPECIAL = re.compile(r"([\\`*_{}\[\]<>()#+!|~])")
+
+
+def _md(text: Any) -> str:
+    """Escape Markdown in names from OVapi/NDOV before they are shown in a flow description."""
+    return _MARKDOWN_SPECIAL.sub(r"\\\1", str(text))
 
 
 def _split_list(text: str | None) -> list[str]:
@@ -232,6 +242,14 @@ class StopFlowMixin(_FlowBase):
 
     async def _async_finish_stops(self, stops: list[dict[str, Any]]):  # pragma: no cover - overridden
         raise NotImplementedError
+
+    @callback
+    def async_remove(self) -> None:
+        """The flow was closed or aborted: stop a running download/search so it does not continue in the background."""
+        if self._task is not None and not self._task.done():
+            self._task.cancel()
+        self._task = None
+        super().async_remove()  # type: ignore[misc]
 
     # ------------------------------------------------------------ zoeken via coördinaten/adres/kaart
     async def async_step_search(self, user_input: dict[str, Any] | None = None):
@@ -372,11 +390,10 @@ class StopFlowMixin(_FlowBase):
 
     def _t(self, key: str, **values: Any) -> str:
         template = getattr(self, "_texts", {}).get(f"component.{DOMAIN}.exceptions.{key}.message", key)
-        return template.format(**values)
-
-    def _decimal(self, value: float) -> str:
-        text = f"{value:.1f}"
-        return text.replace(".", ",") if self.hass.config.language.startswith("nl") else text
+        try:
+            return template.format(**values)
+        except (KeyError, IndexError, ValueError):  # a broken translation must not break the flow
+            return key
 
     async def async_step_select_stop(self, user_input: dict[str, Any] | None = None):
         errors: dict[str, str] = {}
@@ -392,35 +409,33 @@ class StopFlowMixin(_FlowBase):
         fields: dict[Any, Any] = {}
         placeholders: dict[str, str] = {}
         for i, c in enumerate(self._candidates, start=1):
-            title = c["name"] + (f" ({c['town']})" if len(towns) > 1 and c.get("town") else "")
             compass = compass_label(c.get("bearing"))
-            # label of the checkbox: stop, TPC, distance and heading ...
-            placeholders[f"stop_{i}_label"] = " · ".join(
-                part
-                for part in (
-                    title,
-                    f"📍 TPC {', '.join(c['tpc_codes'])}",
-                    self._home_distance_text(c) + (f" | {compass}" if compass else ""),
-                )
-                if part
+            placeholders[f"stop_{i}_name"] = _md(
+                c["name"] + (f" ({c['town']})" if len(towns) > 1 and c.get("town") else "")
             )
-            # ... en eronder (helpertekst, markdown) de huidige vertrektijden per lijn
-            if c.get("departures"):
-                rows = "\n".join(
-                    f"- 🚌 **{d['line']}**" + (f" → {' / '.join(d['destinations'])}" if d["destinations"] else "") + f" · {d['time']}"
+            placeholders[f"stop_{i}_tpc"] = ", ".join(c["tpc_codes"])
+            placeholders[f"stop_{i}_km"] = f"{self._home_distance(c) / 1000:.1f}"
+            placeholders[f"stop_{i}_compass"] = f" | {compass}" if compass else ""
+            # the fixed words ("TPC", "km from home", "Current departures") come from the translations
+            placeholders[f"stop_{i}_rows"] = (
+                "\n".join(
+                    f"- 🚌 **{_md(d['line'])}**"
+                    + (f" → {_md(' / '.join(d['destinations']))}" if d["destinations"] else "")
+                    + f" · {d['time']}"
                     for d in c["departures"]
                 )
-                placeholders[f"stop_{i}_info"] = f"{self._t('current_departures')}\n\n{rows}"
-            else:
-                placeholders[f"stop_{i}_info"] = self._t("no_departure_info")
+                if c.get("departures")
+                else "⚠️ –"
+            )
             fields[vol.Optional(f"stop_{i}", default=False)] = bool
         n = len(self._candidates)
-        found = self._t("directions_found_one" if n == 1 else "directions_found", count=n)
-        if self._skipped:
-            found += " " + self._t("stops_without_live_data", count=self._skipped)
+        notices = ""
         if self._total > n:
-            found = self._t("list_truncated", shown=n, total=self._total) + "\n\n" + found
-        placeholders["found"] = found
+            notices += self._t("list_truncated", shown=n, total=self._total) + "\n\n"
+        if self._skipped:
+            notices += self._t("stops_without_live_data", count=self._skipped) + "\n\n"
+        placeholders["notices"] = notices
+        placeholders["count"] = str(n)
         return self.async_show_form(  # type: ignore[attr-defined]
             step_id="select_stop",
             data_schema=vol.Schema(fields),
@@ -464,12 +479,6 @@ class StopFlowMixin(_FlowBase):
     def _home_distance(self, c: dict[str, Any]) -> float:
         """Distance (m, as the crow flies) from the stop to the Home Assistant home location."""
         return distance_m(c["lat"], c["lon"], self.hass.config.latitude, self.hass.config.longitude)
-
-    def _home_distance_text(self, c: dict[str, Any]) -> str:
-        """'0,7 km lopen van huis' (nl) / '0.7 km walk from home' (en) under 2 km, otherwise '50,6 km van huis'."""
-        meters = self._home_distance(c)
-        km = self._decimal(meters / 1000)
-        return self._t("walking_from_home" if meters < 2000 else "from_home", km=km)
 
     def _pending_from(self, candidate: dict[str, Any], with_direction: bool = False) -> dict[str, Any]:
         return {
@@ -527,7 +536,7 @@ class StopFlowMixin(_FlowBase):
         return self.async_show_form(  # type: ignore[attr-defined]
             step_id="stop_details",
             data_schema=vol.Schema(fields),
-            description_placeholders={"progress": progress, "direction": pending.get("preview") or "-"},
+            description_placeholders={"progress": progress, "direction": _md(pending.get("preview") or "-")},
         )
 
     # ------------------------------------------------------------ handmatig TPC-codes
@@ -535,7 +544,7 @@ class StopFlowMixin(_FlowBase):
         errors: dict[str, str] = {}
         if user_input is not None:
             codes = parse_codes(user_input.get(CONF_TPC_CODES))
-            if not codes:
+            if not codes or len(codes) > MAX_TPC_CODES:
                 errors["base"] = "invalid_tpc"
             else:
                 infos = await get_api(self.hass).async_validate_tpcs(codes)
@@ -610,7 +619,7 @@ class EditStopsMixin(StopFlowMixin):
         errors: dict[str, str] = {}
         if user_input is not None:
             codes = parse_codes(user_input.get(CONF_TPC_CODES))
-            if not codes:
+            if not codes or len(codes) > MAX_TPC_CODES:
                 errors["base"] = "invalid_tpc"
             else:
                 new_codes = [c for c in codes if c not in current["tpc_codes"]]

@@ -34,6 +34,11 @@ def distance_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return 2 * r * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
+def _is_number(text: str) -> bool:
+    """Plain ASCII digits (str.isdigit() also accepts characters such as '²' that int() rejects)."""
+    return text.isascii() and text.isdigit()
+
+
 def parse_time(value: Any, tz: tzinfo) -> datetime | None:
     """Parse an OVapi timestamp; naive values are local time in ``tz``."""
     if not value or not isinstance(value, str):
@@ -256,7 +261,7 @@ def line_options(departures: Iterable[dict[str, Any]]) -> dict[str, str]:
 def sort_lines(options: dict[str, str]) -> dict[str, str]:
     """Lijnnummers numeriek sorteren (34, 73, 74, 350), daarna letters (N74)."""
     def key(item: str) -> tuple[int, Any]:
-        return (0, int(item)) if item.isdigit() else (1, item)
+        return (0, int(item)) if _is_number(item) else (1, item)
 
     return {k: options[k] for k in sorted(options, key=key)}
 
@@ -302,7 +307,7 @@ def merged_summary(view: list[dict[str, Any]], max_lines: int = 3, max_destinati
 
 def sorted_lines(lines: Iterable[str]) -> list[str]:
     """Unieke lijnnummers, numeriek gesorteerd (34, 73, 350), daarna letters (N74)."""
-    return sorted(set(lines), key=lambda x: (0, int(x), x) if x.isdigit() else (1, 0, x))
+    return sorted(set(lines), key=lambda x: (0, int(x), x) if _is_number(x) else (1, 0, x))
 
 
 def main_destination(view: list[dict[str, Any]]) -> str:

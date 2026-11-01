@@ -23,73 +23,72 @@
       },
       "search": {
         "title": "Haltes zoeken",
-        "description": "Zet de pin op de kaart en maak de zoekcirkel groter of kleiner door aan de rand te slepen (50–5000 m, standaard 250 m). Onder de kaart zie je de bijbehorende coördinaten en straal; die lopen mee met de pin. Coördinaten (bijv. 52.1000, 5.1000) kun je hieronder invullen; die gaan voor de pin. Je krijgt daarna direct een lijst met de bushaltes in die zone, elke rijrichting apart.",
+        "description": "Zoek op plaatsnaam of adres en toets **Enter**. Gebruik vervolgens de bijgewerkte kaart en marker om in een zone bushaltes te zoeken: verplaats de marker op de kaart of maak de zone groter (50–5000 m).",
         "data": {
-          "location": "Zone op de kaart",
-          "modes": "Vervoerstypen",
-          "place": "Adres of plaatsnaam"
+          "place": "Adres of plaatsnaam",
+          "location": "Zone om haltes in te zoeken",
+          "modes": "Vervoerstypen"
         },
         "data_description": {
-          "modes": "Standaard alleen bus. Tram, metro en veerboot hebben ook realtime gegevens bij OVapi.",
-          "place": "Alleen een plaatsnaam (Voorbeeldstad): de kaart springt naar het centrum van de bebouwde kom (zoekstraal 2 km). Straat + plaats (Voorbeeldlaan Voorbeeldstad) of een adres: de pin komt op die straat of dat adres. Druk op Enter/Verzenden, verplaats daarna zo nodig de pin en verzend opnieuw om haltes te zoeken."
+          "modes": "Standaard alleen bus. Tram, metro en veerboot hebben ook realtime gegevens bij OVapi."
         }
       },
       "select_stop": {
         "title": "Selecteer haltes",
-        "description": "Vink de bushaltes aan die je wilt toevoegen. Elke checkbox is één rijrichting (één haltepaal) met eronder de huidige vertrektijden; bussen met een andere eindbestemming in dezelfde richting zijn samengevoegd. Elke aangevinkte halte wordt een eigen apparaat.\n\n{found}",
+        "description": "Selecteer de bushaltes om toe te voegen. Elke halte wordt een apparaat in Home Assistant.\n\n{notices}Gevonden bushaltes: {count}",
         "data": {
-          "stop_1": "{stop_1_label}",
-          "stop_2": "{stop_2_label}",
-          "stop_3": "{stop_3_label}",
-          "stop_4": "{stop_4_label}",
-          "stop_5": "{stop_5_label}",
-          "stop_6": "{stop_6_label}",
-          "stop_7": "{stop_7_label}",
-          "stop_8": "{stop_8_label}",
-          "stop_9": "{stop_9_label}",
-          "stop_10": "{stop_10_label}",
-          "stop_11": "{stop_11_label}",
-          "stop_12": "{stop_12_label}",
-          "stop_13": "{stop_13_label}",
-          "stop_14": "{stop_14_label}",
-          "stop_15": "{stop_15_label}",
-          "stop_16": "{stop_16_label}",
-          "stop_17": "{stop_17_label}",
-          "stop_18": "{stop_18_label}",
-          "stop_19": "{stop_19_label}",
-          "stop_20": "{stop_20_label}",
-          "stop_21": "{stop_21_label}",
-          "stop_22": "{stop_22_label}",
-          "stop_23": "{stop_23_label}",
-          "stop_24": "{stop_24_label}",
-          "stop_25": "{stop_25_label}"
+          "stop_1": "{stop_1_name} · 📍 TPC {stop_1_tpc} · {stop_1_km} km van huis{stop_1_compass}",
+          "stop_2": "{stop_2_name} · 📍 TPC {stop_2_tpc} · {stop_2_km} km van huis{stop_2_compass}",
+          "stop_3": "{stop_3_name} · 📍 TPC {stop_3_tpc} · {stop_3_km} km van huis{stop_3_compass}",
+          "stop_4": "{stop_4_name} · 📍 TPC {stop_4_tpc} · {stop_4_km} km van huis{stop_4_compass}",
+          "stop_5": "{stop_5_name} · 📍 TPC {stop_5_tpc} · {stop_5_km} km van huis{stop_5_compass}",
+          "stop_6": "{stop_6_name} · 📍 TPC {stop_6_tpc} · {stop_6_km} km van huis{stop_6_compass}",
+          "stop_7": "{stop_7_name} · 📍 TPC {stop_7_tpc} · {stop_7_km} km van huis{stop_7_compass}",
+          "stop_8": "{stop_8_name} · 📍 TPC {stop_8_tpc} · {stop_8_km} km van huis{stop_8_compass}",
+          "stop_9": "{stop_9_name} · 📍 TPC {stop_9_tpc} · {stop_9_km} km van huis{stop_9_compass}",
+          "stop_10": "{stop_10_name} · 📍 TPC {stop_10_tpc} · {stop_10_km} km van huis{stop_10_compass}",
+          "stop_11": "{stop_11_name} · 📍 TPC {stop_11_tpc} · {stop_11_km} km van huis{stop_11_compass}",
+          "stop_12": "{stop_12_name} · 📍 TPC {stop_12_tpc} · {stop_12_km} km van huis{stop_12_compass}",
+          "stop_13": "{stop_13_name} · 📍 TPC {stop_13_tpc} · {stop_13_km} km van huis{stop_13_compass}",
+          "stop_14": "{stop_14_name} · 📍 TPC {stop_14_tpc} · {stop_14_km} km van huis{stop_14_compass}",
+          "stop_15": "{stop_15_name} · 📍 TPC {stop_15_tpc} · {stop_15_km} km van huis{stop_15_compass}",
+          "stop_16": "{stop_16_name} · 📍 TPC {stop_16_tpc} · {stop_16_km} km van huis{stop_16_compass}",
+          "stop_17": "{stop_17_name} · 📍 TPC {stop_17_tpc} · {stop_17_km} km van huis{stop_17_compass}",
+          "stop_18": "{stop_18_name} · 📍 TPC {stop_18_tpc} · {stop_18_km} km van huis{stop_18_compass}",
+          "stop_19": "{stop_19_name} · 📍 TPC {stop_19_tpc} · {stop_19_km} km van huis{stop_19_compass}",
+          "stop_20": "{stop_20_name} · 📍 TPC {stop_20_tpc} · {stop_20_km} km van huis{stop_20_compass}",
+          "stop_21": "{stop_21_name} · 📍 TPC {stop_21_tpc} · {stop_21_km} km van huis{stop_21_compass}",
+          "stop_22": "{stop_22_name} · 📍 TPC {stop_22_tpc} · {stop_22_km} km van huis{stop_22_compass}",
+          "stop_23": "{stop_23_name} · 📍 TPC {stop_23_tpc} · {stop_23_km} km van huis{stop_23_compass}",
+          "stop_24": "{stop_24_name} · 📍 TPC {stop_24_tpc} · {stop_24_km} km van huis{stop_24_compass}",
+          "stop_25": "{stop_25_name} · 📍 TPC {stop_25_tpc} · {stop_25_km} km van huis{stop_25_compass}"
         },
         "data_description": {
-          "stop_1": "{stop_1_info}",
-          "stop_2": "{stop_2_info}",
-          "stop_3": "{stop_3_info}",
-          "stop_4": "{stop_4_info}",
-          "stop_5": "{stop_5_info}",
-          "stop_6": "{stop_6_info}",
-          "stop_7": "{stop_7_info}",
-          "stop_8": "{stop_8_info}",
-          "stop_9": "{stop_9_info}",
-          "stop_10": "{stop_10_info}",
-          "stop_11": "{stop_11_info}",
-          "stop_12": "{stop_12_info}",
-          "stop_13": "{stop_13_info}",
-          "stop_14": "{stop_14_info}",
-          "stop_15": "{stop_15_info}",
-          "stop_16": "{stop_16_info}",
-          "stop_17": "{stop_17_info}",
-          "stop_18": "{stop_18_info}",
-          "stop_19": "{stop_19_info}",
-          "stop_20": "{stop_20_info}",
-          "stop_21": "{stop_21_info}",
-          "stop_22": "{stop_22_info}",
-          "stop_23": "{stop_23_info}",
-          "stop_24": "{stop_24_info}",
-          "stop_25": "{stop_25_info}"
+          "stop_1": "Huidige vertrektijden OVapi:\n\n{stop_1_rows}",
+          "stop_2": "Huidige vertrektijden OVapi:\n\n{stop_2_rows}",
+          "stop_3": "Huidige vertrektijden OVapi:\n\n{stop_3_rows}",
+          "stop_4": "Huidige vertrektijden OVapi:\n\n{stop_4_rows}",
+          "stop_5": "Huidige vertrektijden OVapi:\n\n{stop_5_rows}",
+          "stop_6": "Huidige vertrektijden OVapi:\n\n{stop_6_rows}",
+          "stop_7": "Huidige vertrektijden OVapi:\n\n{stop_7_rows}",
+          "stop_8": "Huidige vertrektijden OVapi:\n\n{stop_8_rows}",
+          "stop_9": "Huidige vertrektijden OVapi:\n\n{stop_9_rows}",
+          "stop_10": "Huidige vertrektijden OVapi:\n\n{stop_10_rows}",
+          "stop_11": "Huidige vertrektijden OVapi:\n\n{stop_11_rows}",
+          "stop_12": "Huidige vertrektijden OVapi:\n\n{stop_12_rows}",
+          "stop_13": "Huidige vertrektijden OVapi:\n\n{stop_13_rows}",
+          "stop_14": "Huidige vertrektijden OVapi:\n\n{stop_14_rows}",
+          "stop_15": "Huidige vertrektijden OVapi:\n\n{stop_15_rows}",
+          "stop_16": "Huidige vertrektijden OVapi:\n\n{stop_16_rows}",
+          "stop_17": "Huidige vertrektijden OVapi:\n\n{stop_17_rows}",
+          "stop_18": "Huidige vertrektijden OVapi:\n\n{stop_18_rows}",
+          "stop_19": "Huidige vertrektijden OVapi:\n\n{stop_19_rows}",
+          "stop_20": "Huidige vertrektijden OVapi:\n\n{stop_20_rows}",
+          "stop_21": "Huidige vertrektijden OVapi:\n\n{stop_21_rows}",
+          "stop_22": "Huidige vertrektijden OVapi:\n\n{stop_22_rows}",
+          "stop_23": "Huidige vertrektijden OVapi:\n\n{stop_23_rows}",
+          "stop_24": "Huidige vertrektijden OVapi:\n\n{stop_24_rows}",
+          "stop_25": "Huidige vertrektijden OVapi:\n\n{stop_25_rows}"
         }
       },
       "stop_details": {
@@ -139,12 +138,12 @@
         "title": "Extra opties",
         "description": "Laatste instellingen voor de gekozen haltes.",
         "data": {
-          "direction_in_name": "Richting in de apparaatnaam opnemen (→ …)",
+          "direction_in_name": "Richting in de apparaatnaam opnemen (to …)",
           "stale_hours": "Na hoeveel uur zijn busgegevens verouderd?",
           "refresh_ndov": "NDOV data {ndov_days} dagen oud (bestand van {ndov_date}) opnieuw downloaden"
         },
         "data_description": {
-          "direction_in_name": "Standaard aan. Uit: alleen de haltenaam (bijvoorbeeld Voorbeeldstad, Markt); aan: Voorbeeldstad, Markt → Station.",
+          "direction_in_name": "Standaard aan. Uit: alleen de haltenaam (bijvoorbeeld Voorbeeldstad, Markt); aan: Voorbeeldstad, Markt to Station.",
           "stale_hours": "Standaard 12 uur. Daarna tonen de haltes 'Data vernieuwen' en een halte met vraagteken. Later te wijzigen via Configureren → Instellingen.",
           "refresh_ndov": "Selecteer deze optie als je de nieuwe of gewijzigde halte niet in de lijst hebt staan. De configuratie begint dan opnieuw met downloaden."
         }
@@ -161,7 +160,7 @@
       "address_not_found": "Adres niet gevonden door PDOK.",
       "cannot_connect": "Verbinding mislukt (PDOK of OVapi). Zie het logboek.",
       "tpc_not_found": "OVapi kent deze TPC-code niet. Controleer de code; je kunt hem testen via v0.ovapi.nl/tpc/ gevolgd door de code.",
-      "invalid_tpc": "Geen geldige TPC-code gevonden.",
+      "invalid_tpc": "Geen geldige TPC-code gevonden (maximaal 20 codes).",
       "no_selection": "Kies minstens één richting.",
       "place_not_found": "Plaats of adres niet gevonden bij PDOK."
     },
@@ -183,73 +182,72 @@
     "step": {
       "search": {
         "title": "Haltes zoeken",
-        "description": "Zet de pin op de kaart en maak de zoekcirkel groter of kleiner door aan de rand te slepen (50–5000 m, standaard 250 m). Onder de kaart zie je de bijbehorende coördinaten en straal; die lopen mee met de pin. Coördinaten (bijv. 52.1000, 5.1000) kun je hieronder invullen; die gaan voor de pin. Je krijgt daarna direct een lijst met de bushaltes in die zone, elke rijrichting apart.",
+        "description": "Zoek op plaatsnaam of adres en toets **Enter**. Gebruik vervolgens de bijgewerkte kaart en marker om in een zone bushaltes te zoeken: verplaats de marker op de kaart of maak de zone groter (50–5000 m).",
         "data": {
-          "location": "Zone op de kaart",
-          "modes": "Vervoerstypen",
-          "place": "Adres of plaatsnaam"
+          "place": "Adres of plaatsnaam",
+          "location": "Zone om haltes in te zoeken",
+          "modes": "Vervoerstypen"
         },
         "data_description": {
-          "modes": "Standaard alleen bus. Tram, metro en veerboot hebben ook realtime gegevens bij OVapi.",
-          "place": "Alleen een plaatsnaam (Voorbeeldstad): de kaart springt naar het centrum van de bebouwde kom (zoekstraal 2 km). Straat + plaats (Voorbeeldlaan Voorbeeldstad) of een adres: de pin komt op die straat of dat adres. Druk op Enter/Verzenden, verplaats daarna zo nodig de pin en verzend opnieuw om haltes te zoeken."
+          "modes": "Standaard alleen bus. Tram, metro en veerboot hebben ook realtime gegevens bij OVapi."
         }
       },
       "select_stop": {
         "title": "Selecteer haltes",
-        "description": "Vink de bushaltes aan die je wilt toevoegen. Elke checkbox is één rijrichting (één haltepaal) met eronder de huidige vertrektijden; bussen met een andere eindbestemming in dezelfde richting zijn samengevoegd. Elke aangevinkte halte wordt een eigen apparaat.\n\n{found}",
+        "description": "Selecteer de bushaltes om toe te voegen. Elke halte wordt een apparaat in Home Assistant.\n\n{notices}Gevonden bushaltes: {count}",
         "data": {
-          "stop_1": "{stop_1_label}",
-          "stop_2": "{stop_2_label}",
-          "stop_3": "{stop_3_label}",
-          "stop_4": "{stop_4_label}",
-          "stop_5": "{stop_5_label}",
-          "stop_6": "{stop_6_label}",
-          "stop_7": "{stop_7_label}",
-          "stop_8": "{stop_8_label}",
-          "stop_9": "{stop_9_label}",
-          "stop_10": "{stop_10_label}",
-          "stop_11": "{stop_11_label}",
-          "stop_12": "{stop_12_label}",
-          "stop_13": "{stop_13_label}",
-          "stop_14": "{stop_14_label}",
-          "stop_15": "{stop_15_label}",
-          "stop_16": "{stop_16_label}",
-          "stop_17": "{stop_17_label}",
-          "stop_18": "{stop_18_label}",
-          "stop_19": "{stop_19_label}",
-          "stop_20": "{stop_20_label}",
-          "stop_21": "{stop_21_label}",
-          "stop_22": "{stop_22_label}",
-          "stop_23": "{stop_23_label}",
-          "stop_24": "{stop_24_label}",
-          "stop_25": "{stop_25_label}"
+          "stop_1": "{stop_1_name} · 📍 TPC {stop_1_tpc} · {stop_1_km} km van huis{stop_1_compass}",
+          "stop_2": "{stop_2_name} · 📍 TPC {stop_2_tpc} · {stop_2_km} km van huis{stop_2_compass}",
+          "stop_3": "{stop_3_name} · 📍 TPC {stop_3_tpc} · {stop_3_km} km van huis{stop_3_compass}",
+          "stop_4": "{stop_4_name} · 📍 TPC {stop_4_tpc} · {stop_4_km} km van huis{stop_4_compass}",
+          "stop_5": "{stop_5_name} · 📍 TPC {stop_5_tpc} · {stop_5_km} km van huis{stop_5_compass}",
+          "stop_6": "{stop_6_name} · 📍 TPC {stop_6_tpc} · {stop_6_km} km van huis{stop_6_compass}",
+          "stop_7": "{stop_7_name} · 📍 TPC {stop_7_tpc} · {stop_7_km} km van huis{stop_7_compass}",
+          "stop_8": "{stop_8_name} · 📍 TPC {stop_8_tpc} · {stop_8_km} km van huis{stop_8_compass}",
+          "stop_9": "{stop_9_name} · 📍 TPC {stop_9_tpc} · {stop_9_km} km van huis{stop_9_compass}",
+          "stop_10": "{stop_10_name} · 📍 TPC {stop_10_tpc} · {stop_10_km} km van huis{stop_10_compass}",
+          "stop_11": "{stop_11_name} · 📍 TPC {stop_11_tpc} · {stop_11_km} km van huis{stop_11_compass}",
+          "stop_12": "{stop_12_name} · 📍 TPC {stop_12_tpc} · {stop_12_km} km van huis{stop_12_compass}",
+          "stop_13": "{stop_13_name} · 📍 TPC {stop_13_tpc} · {stop_13_km} km van huis{stop_13_compass}",
+          "stop_14": "{stop_14_name} · 📍 TPC {stop_14_tpc} · {stop_14_km} km van huis{stop_14_compass}",
+          "stop_15": "{stop_15_name} · 📍 TPC {stop_15_tpc} · {stop_15_km} km van huis{stop_15_compass}",
+          "stop_16": "{stop_16_name} · 📍 TPC {stop_16_tpc} · {stop_16_km} km van huis{stop_16_compass}",
+          "stop_17": "{stop_17_name} · 📍 TPC {stop_17_tpc} · {stop_17_km} km van huis{stop_17_compass}",
+          "stop_18": "{stop_18_name} · 📍 TPC {stop_18_tpc} · {stop_18_km} km van huis{stop_18_compass}",
+          "stop_19": "{stop_19_name} · 📍 TPC {stop_19_tpc} · {stop_19_km} km van huis{stop_19_compass}",
+          "stop_20": "{stop_20_name} · 📍 TPC {stop_20_tpc} · {stop_20_km} km van huis{stop_20_compass}",
+          "stop_21": "{stop_21_name} · 📍 TPC {stop_21_tpc} · {stop_21_km} km van huis{stop_21_compass}",
+          "stop_22": "{stop_22_name} · 📍 TPC {stop_22_tpc} · {stop_22_km} km van huis{stop_22_compass}",
+          "stop_23": "{stop_23_name} · 📍 TPC {stop_23_tpc} · {stop_23_km} km van huis{stop_23_compass}",
+          "stop_24": "{stop_24_name} · 📍 TPC {stop_24_tpc} · {stop_24_km} km van huis{stop_24_compass}",
+          "stop_25": "{stop_25_name} · 📍 TPC {stop_25_tpc} · {stop_25_km} km van huis{stop_25_compass}"
         },
         "data_description": {
-          "stop_1": "{stop_1_info}",
-          "stop_2": "{stop_2_info}",
-          "stop_3": "{stop_3_info}",
-          "stop_4": "{stop_4_info}",
-          "stop_5": "{stop_5_info}",
-          "stop_6": "{stop_6_info}",
-          "stop_7": "{stop_7_info}",
-          "stop_8": "{stop_8_info}",
-          "stop_9": "{stop_9_info}",
-          "stop_10": "{stop_10_info}",
-          "stop_11": "{stop_11_info}",
-          "stop_12": "{stop_12_info}",
-          "stop_13": "{stop_13_info}",
-          "stop_14": "{stop_14_info}",
-          "stop_15": "{stop_15_info}",
-          "stop_16": "{stop_16_info}",
-          "stop_17": "{stop_17_info}",
-          "stop_18": "{stop_18_info}",
-          "stop_19": "{stop_19_info}",
-          "stop_20": "{stop_20_info}",
-          "stop_21": "{stop_21_info}",
-          "stop_22": "{stop_22_info}",
-          "stop_23": "{stop_23_info}",
-          "stop_24": "{stop_24_info}",
-          "stop_25": "{stop_25_info}"
+          "stop_1": "Huidige vertrektijden OVapi:\n\n{stop_1_rows}",
+          "stop_2": "Huidige vertrektijden OVapi:\n\n{stop_2_rows}",
+          "stop_3": "Huidige vertrektijden OVapi:\n\n{stop_3_rows}",
+          "stop_4": "Huidige vertrektijden OVapi:\n\n{stop_4_rows}",
+          "stop_5": "Huidige vertrektijden OVapi:\n\n{stop_5_rows}",
+          "stop_6": "Huidige vertrektijden OVapi:\n\n{stop_6_rows}",
+          "stop_7": "Huidige vertrektijden OVapi:\n\n{stop_7_rows}",
+          "stop_8": "Huidige vertrektijden OVapi:\n\n{stop_8_rows}",
+          "stop_9": "Huidige vertrektijden OVapi:\n\n{stop_9_rows}",
+          "stop_10": "Huidige vertrektijden OVapi:\n\n{stop_10_rows}",
+          "stop_11": "Huidige vertrektijden OVapi:\n\n{stop_11_rows}",
+          "stop_12": "Huidige vertrektijden OVapi:\n\n{stop_12_rows}",
+          "stop_13": "Huidige vertrektijden OVapi:\n\n{stop_13_rows}",
+          "stop_14": "Huidige vertrektijden OVapi:\n\n{stop_14_rows}",
+          "stop_15": "Huidige vertrektijden OVapi:\n\n{stop_15_rows}",
+          "stop_16": "Huidige vertrektijden OVapi:\n\n{stop_16_rows}",
+          "stop_17": "Huidige vertrektijden OVapi:\n\n{stop_17_rows}",
+          "stop_18": "Huidige vertrektijden OVapi:\n\n{stop_18_rows}",
+          "stop_19": "Huidige vertrektijden OVapi:\n\n{stop_19_rows}",
+          "stop_20": "Huidige vertrektijden OVapi:\n\n{stop_20_rows}",
+          "stop_21": "Huidige vertrektijden OVapi:\n\n{stop_21_rows}",
+          "stop_22": "Huidige vertrektijden OVapi:\n\n{stop_22_rows}",
+          "stop_23": "Huidige vertrektijden OVapi:\n\n{stop_23_rows}",
+          "stop_24": "Huidige vertrektijden OVapi:\n\n{stop_24_rows}",
+          "stop_25": "Huidige vertrektijden OVapi:\n\n{stop_25_rows}"
         }
       },
       "stop_details": {
@@ -367,12 +365,12 @@
         "title": "Extra opties",
         "description": "Laatste instellingen voor de gekozen haltes.",
         "data": {
-          "direction_in_name": "Richting in de apparaatnaam opnemen (→ …)",
+          "direction_in_name": "Richting in de apparaatnaam opnemen (to …)",
           "stale_hours": "Na hoeveel uur zijn busgegevens verouderd?",
           "refresh_ndov": "NDOV data {ndov_days} dagen oud (bestand van {ndov_date}) opnieuw downloaden"
         },
         "data_description": {
-          "direction_in_name": "Standaard aan. Uit: alleen de haltenaam (bijvoorbeeld Voorbeeldstad, Markt); aan: Voorbeeldstad, Markt → Station.",
+          "direction_in_name": "Standaard aan. Uit: alleen de haltenaam (bijvoorbeeld Voorbeeldstad, Markt); aan: Voorbeeldstad, Markt to Station.",
           "stale_hours": "Standaard 12 uur. Daarna tonen de haltes 'Data vernieuwen' en een halte met vraagteken. Later te wijzigen via Configureren → Instellingen.",
           "refresh_ndov": "Selecteer deze optie als je de nieuwe of gewijzigde halte niet in de lijst hebt staan. De configuratie begint dan opnieuw met downloaden."
         }
@@ -382,7 +380,7 @@
       "address_not_found": "Adres niet gevonden door PDOK.",
       "cannot_connect": "Verbinding mislukt (PDOK of OVapi). Zie het logboek.",
       "tpc_not_found": "OVapi kent deze TPC-code niet. Controleer de code; je kunt hem testen via v0.ovapi.nl/tpc/ gevolgd door de code.",
-      "invalid_tpc": "Geen geldige TPC-code gevonden.",
+      "invalid_tpc": "Geen geldige TPC-code gevonden (maximaal 20 codes).",
       "no_selection": "Kies minstens één richting.",
       "place_not_found": "Plaats of adres niet gevonden bij PDOK."
     },
@@ -553,29 +551,11 @@
     }
   },
   "exceptions": {
-    "current_departures": {
-      "message": "Huidige vertrektijden OVapi:"
-    },
-    "no_departure_info": {
-      "message": "⚠️ Geen vertrektijden informatie"
-    },
-    "directions_found_one": {
-      "message": "{count} richting gevonden."
-    },
-    "directions_found": {
-      "message": "{count} richtingen gevonden."
-    },
     "stops_without_live_data": {
       "message": "{count} haltes zonder live gegevens bij OVapi zijn niet getoond."
     },
     "list_truncated": {
       "message": "⚠️ **De lijst is afgekapt: de dichtstbijzijnde {shown} van {total} richtingen worden getoond. Verklein de zoekstraal om de rest te zien.**"
-    },
-    "walking_from_home": {
-      "message": "{km} km lopen van huis"
-    },
-    "from_home": {
-      "message": "{km} km van huis"
     },
     "unknown": {
       "message": "onbekend"

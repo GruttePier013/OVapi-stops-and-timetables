@@ -32,4 +32,7 @@ class Texts:
 
     def __call__(self, key: str, **values: Any) -> str:
         template = self._translations.get(f"component.{DOMAIN}.exceptions.{key}.message") or DEFAULTS.get(key, key)
-        return template.format(**values)
+        try:
+            return template.format(**values)
+        except (KeyError, IndexError, ValueError):  # a broken translation must not break the entity
+            return DEFAULTS.get(key, key).format(**values) if key in DEFAULTS else key

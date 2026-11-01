@@ -43,6 +43,9 @@ class RefreshAllButton(ButtonEntity):
     def __init__(self, entry: DutchBusConfigEntry) -> None:
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_refresh_all"
+        self.entity_id = "button.ovapi_refresh_all_stops"
 
     async def async_press(self) -> None:
-        await asyncio.gather(*(c.async_manual_refresh() for c in self._entry.runtime_data.coordinators.values()))
+        await asyncio.gather(
+            *(c.async_manual_refresh() for c in self._entry.runtime_data.coordinators.values()), return_exceptions=True
+        )

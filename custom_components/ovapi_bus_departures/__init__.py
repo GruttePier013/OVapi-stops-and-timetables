@@ -76,7 +76,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
                 if ident[0] == DOMAIN
             }
             coordinators = {k: c for k, c in coordinators.items() if k in keys}
-        await asyncio.gather(*(c.async_manual_refresh() for c in coordinators.values()))
+        await asyncio.gather(*(c.async_manual_refresh() for c in coordinators.values()), return_exceptions=True)
 
     schema = vol.Schema(cv.TARGET_SERVICE_FIELDS)
     hass.services.async_register(DOMAIN, SERVICE_REFRESH, _refresh, schema=schema)
@@ -213,6 +213,7 @@ async def _async_check_ndov_age(hass: HomeAssistant, api) -> None:
 async def async_unload_entry(hass: HomeAssistant, entry: DutchBusConfigEntry) -> bool:
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unloaded:
+        get_api(hass).on_outage_change = None  # no callback into an unloaded entry
         ir.async_delete_issue(hass, DOMAIN, ISSUE_API_PAUSED)
         for key in entry.runtime_data.coordinators:  # no stale 'stop paused' repair issues
             ir.async_delete_issue(hass, DOMAIN, issue_id(key))

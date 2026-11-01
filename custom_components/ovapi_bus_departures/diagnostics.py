@@ -1,6 +1,7 @@
 """Diagnostics download: configuration, health state and the raw OVapi responses (locations are redacted)."""
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from homeassistant.components.diagnostics import async_redact_data
@@ -10,7 +11,10 @@ from homeassistant.helpers.device_registry import DeviceEntry
 from .const import DOMAIN
 from .coordinator import DutchBusConfigEntry, StopCoordinator
 
-TO_REDACT = {"lat", "lon", "latitude", "longitude", "Latitude", "Longitude", "person_entities", "persons"}
+TO_REDACT = {
+    "lat", "lon", "latitude", "longitude", "Latitude", "Longitude", "person_entities", "persons",
+    "address", "coordinates", "location", "marker", "nearest_entity",
+}
 
 
 async def _raw_response(c: StopCoordinator) -> dict[str, Any]:
@@ -72,7 +76,13 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: DutchBu
                 "spacing_s": data.api.spacing,
             },
             "ndov_file": await data.api.async_chb_info(),
-            "stops": {key: await _stop_diagnostics(c) for key, c in data.coordinators.items()},
+            "stops": dict(
+                zip(
+                    data.coordinators,
+                    await asyncio.gather(*(_stop_diagnostics(c) for c in data.coordinators.values())),
+                    strict=True,
+                )
+            ),
         },
         TO_REDACT,
     )

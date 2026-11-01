@@ -52,11 +52,36 @@ INSECURE_RETRY_AFTER = 24 * 3600  # after an SSL error at OVapi, only retry with
 REQUEST_TIMEOUT = 30  # grote stations geven grote antwoorden
 # Stop file from NDOV Loket (CHB): the index is refreshed on use after 14 days
 CHB_INDEX_MAX_AGE = 14 * 24 * 3600
+MAX_DOWNLOAD_BYTES = 200 * 1024 * 1024  # the real files are ~13 MB and ~1 MB; refuse anything absurd
+MAX_TPC_CODES = 20  # TPC codes per stop (manual entry/editing)
 PREVIEW_MAX_STOPS = 25  # maximum number of stops (directions) in the config flow list
 CONF_COORDINATES = "coordinates"
 CONF_EXTRA_LINES = "extra_lines"
-# Entity names are always Dutch (the service is Dutch), regardless of the Home Assistant language
-USER_AGENT = "HomeAssistant-ovapi_bus_departures/1.0.0 (custom integration; OVapi KV78Turbo client)"
+# Language-independent entity_id suffixes (the entity_id is ``<platform>.ovapi_<stop>_<suffix>``)
+ID_SUFFIX = {
+    "next_departure": "next_departure",
+    "departures": "departures",
+    "fetched_departures": "fetched_departures",
+    "last_update": "updated",
+    "distance_m": "distance_to_home",
+    "stop_code": "stop_code",
+    "tpc_code": "tpc_code",
+    "lines": "lines",
+    "nearby_count": "persons_nearby",
+    "distance_to_person": "distance_to_person",
+    "error_count": "consecutive_errors",
+    "location": "",
+    "refresh": "refresh",
+    "refresh_schedule": "refresh_frequency",
+    "zone_refresh": "refresh_frequency_in_zone",
+    "zone_stop_after": "stop_refreshing_in_zone_after",
+    "proximity_radius": "zone_radius",
+    "refresh_on_approach": "refresh_when_in_zone",
+    "approach_only": "refresh_only_when_approaching",
+    "paused": "paused",
+}
+ENTITY_ID_PREFIX = "ovapi"
+USER_AGENT = "HomeAssistant-ovapi_bus_departures/1.0.1 (custom integration; OVapi KV78Turbo client)"
 STATIC_URL = "/ovapi_bus_departures_static"  # public path for the map logo (entity_picture)
 PDOK_URL = "https://api.pdok.nl/bzk/locatieserver/search/v3_1/free"
 # v0.ovapi.nl has a mismatching certificate (the YAML sensors also use verify_ssl: false)
@@ -67,6 +92,7 @@ MIN_RADIUS, MAX_RADIUS = 50, 5000
 DEFAULT_ZONE_COOLDOWN = 15  # minutes the zone must be empty before a new visit starts
 MIN_APPROACH_REFRESH_GAP = 60  # seconds between two entry refreshes
 AUTO_MIN_GAP = 60  # minimum seconds between two automatic refreshes of the same stop
+MANUAL_MIN_GAP = 10  # minimum seconds between two manual refreshes (button/action) of the same stop
 DAY_START_HOUR = 6  # refresh when the last bus is gone: only between these local hours
 DAY_END_HOUR = 22
 CONF_MINUTE_UPDATES = "minute_updates"  # rewrite minutes-until every minute (default on)
