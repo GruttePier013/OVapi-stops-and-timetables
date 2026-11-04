@@ -162,16 +162,17 @@ class NextDeparture(MinuteTickerMixin, DutchBusEntity, SensorEntity):
 
     @property
     def native_value(self) -> datetime | None:
-        view = self.coordinator.view()
+        view = self.coordinator.state_view()
         return dt_util.utc_from_timestamp(view[0]["exp"]) if view else None
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        view = self.coordinator.view()
+        view = self.coordinator.state_view()
         if not view:
             return {}
         d = view[0]
         return {
+            "live": d["live"],
             "line_name": d["line_name"],
             "direction": d["direction"],
             "line": d["line"],
@@ -290,7 +291,7 @@ class Departures(MinuteTickerMixin, DutchBusEntity, SensorEntity):
             return None
         if self.coordinator.is_stale():
             return self.coordinator.t("refresh_data")
-        return summarize(self.coordinator.view(), self.coordinator.t)
+        return summarize(self.coordinator.state_view(), self.coordinator.t)
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
@@ -302,6 +303,7 @@ class Departures(MinuteTickerMixin, DutchBusEntity, SensorEntity):
             else None,
             "data_age_min": c.age_minutes(),
             "departures": c.view(),
+            "live_count": sum(1 for d in c.view() if d["live"]),
             "messages": c.data["messages"] if c.data else [],
             "sources": c.tpc_codes,
             "line_filter": c.lines,
@@ -324,14 +326,15 @@ class LineDeparture(MinuteTickerMixin, DutchBusEntity, SensorEntity):
         self._attr_translation_key = "line"
         self._attr_translation_placeholders = {"line": line}
 
-    def _items(self) -> list[dict[str, Any]]:
+    def _items(self, *, state: bool = False) -> list[dict[str, Any]]:
         if self.coordinator.is_stale():
             return []
-        return [d for d in self.coordinator.view_full() if d["line"] == self._line]
+        view = self.coordinator.state_view() if state else self.coordinator.view_full()
+        return [d for d in view if d["line"] == self._line]
 
     @property
     def native_value(self) -> datetime | None:
-        items = self._items()
+        items = self._items(state=True)
         return dt_util.utc_from_timestamp(items[0]["exp"]) if items else None
 
     @property
@@ -347,6 +350,7 @@ class LineDeparture(MinuteTickerMixin, DutchBusEntity, SensorEntity):
             "minutes_until": d["minutes_until"],
             "delay_min": d["delay_min"],
             "status": d["status"],
+            "live": d["live"],
             "upcoming": [
                 {
                     "time": x["time"],
@@ -355,6 +359,7 @@ class LineDeparture(MinuteTickerMixin, DutchBusEntity, SensorEntity):
                     "delay_min": x["delay_min"],
                     "destination": x["destination"],
                     "status": x["status"],
+                    "live": x["live"],
                 }
                 for x in items[1:]
             ],
@@ -378,7 +383,7 @@ class StopOnMap(MinuteTickerMixin, DutchBusEntity, SensorEntity):
     def native_value(self) -> str:
         if self.coordinator.needs_refresh():
             return self.coordinator.t("refresh_data")
-        return next_departure_text(self.coordinator.view(), self.coordinator.t)
+        return next_departure_text(self.coordinator.state_view(), self.coordinator.t)
 
     @property
     def icon(self) -> str:

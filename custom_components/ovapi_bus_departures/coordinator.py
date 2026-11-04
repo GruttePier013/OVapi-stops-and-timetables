@@ -17,6 +17,7 @@ from homeassistant.util import dt as dt_util
 from .api import DutchBusApi, OvapiBlocked
 from .const import (
     AUTO_MIN_GAP,
+    CONF_LIVE_ONLY,
     CONF_MAX_ERRORS,
     CONF_STALE_HOURS,
     CONF_ZONE_COOLDOWN,
@@ -445,6 +446,13 @@ class StopCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         result = build_view(self.data["departures"], current, self.lines, None, GRACE_SECONDS, self.destinations)
         self._view_cache = (minute, self.data, result)
         return result
+
+    def state_view(self, now: datetime | None = None) -> list[dict[str, Any]]:
+        """Departures that determine the states: all of them, or only those with a live vehicle (option)."""
+        view = self.view(now)
+        if self.entry.options.get(CONF_LIVE_ONLY, False):
+            return [d for d in view if d["live"]]
+        return view
 
     def is_stale(self, now: datetime | None = None) -> bool:
         """Is the data older than 12 hours? (e.g. with refresh frequency 'never'.)"""

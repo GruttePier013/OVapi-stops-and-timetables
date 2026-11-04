@@ -22,6 +22,7 @@ from typing import Any
 from .texts import Texts
 
 STATUS_CANCEL = "CANCEL"
+LIVE_STATUSES = frozenset({"DRIVING", "ARRIVED"})  # OVapi TripStopStatus values that mean "a vehicle is really on its way"
 
 
 def distance_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -182,6 +183,7 @@ def build_view(
                 "line": d["line"],
                 "destination": d["destination"],
                 "status": d["status"],
+                "live": d["status"] in LIVE_STATUSES,  # False: only the timetable (PLANNED/UNKNOWN), the bus may not run
                 "tpc": d["tpc"],
                 "line_name": d.get("linename", ""),
                 "direction": d.get("direction", ""),

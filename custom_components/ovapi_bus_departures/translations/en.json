@@ -318,11 +318,13 @@
           "stale_hours": "Hours before bus data counts as outdated",
           "line_sensors": "Create a sensor per line (e.g. Line 74)",
           "zone_cooldown": "Cool-down between visits (minutes)",
-          "minute_updates": "Update minutes-until-departure every minute"
+          "minute_updates": "Update minutes-until-departure every minute",
+          "live_only": "Only live departures count as next departure"
         },
         "data_description": {
           "zone_cooldown": "A new visit (with a new refresh on entry) only starts after the zone was empty this long. Several persons share one visit.",
-          "minute_updates": "Off: entities are only updated on a refresh or when a bus leaves (fewer state writes). The shown minutes then do not count down."
+          "minute_updates": "Off: entities are only updated on a refresh or when a bus leaves (fewer state writes). The shown minutes then do not count down.",
+          "live_only": "On: a departure without a live vehicle (status other than DRIVING or ARRIVED, so only the timetable) is not used for the states of the stop, the next departure and the line sensors; they show Unknown or No departures instead. The lists in the attributes still contain everything, with a `live` flag per departure."
         },
         "sections": {
           "defaults": {

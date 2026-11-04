@@ -2,6 +2,11 @@
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.0.2]
+### Added
+- Certainty indicator: every departure has a `live` flag (`true` when OVapi reports the vehicle as `DRIVING` or `ARRIVED`, `false` when there is only a timetable time, for example `PLANNED`). It is in the `departures` attribute, on the *Next departure* sensor, and on the line sensors (also in `upcoming`). The *Departures* sensor has `live_count`.
+- Setting *Only live departures count as next departure* (default off). On: departures without a live vehicle are ignored for the states of the stop, the next departure and the line sensors (they show Unknown / No departures); the attribute lists still contain everything.
+
 ## [1.0.1]
 ### Fixed
 - Line sensors for lines with letters (for example `N74`) got an invalid, upper case entity id; Home Assistant warned this stops working in 2027.2. All entity ids are now slugified as a whole.

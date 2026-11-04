@@ -318,11 +318,13 @@
           "stale_hours": "Na hoeveel uur zijn busgegevens verouderd?",
           "line_sensors": "Per lijn een sensor aanmaken (bijv. Lijn 74)",
           "zone_cooldown": "Afkoeltijd tussen bezoeken (minuten)",
-          "minute_updates": "Minuten tot vertrek elke minuut bijwerken"
+          "minute_updates": "Minuten tot vertrek elke minuut bijwerken",
+          "live_only": "Alleen live vertrektijden tellen als volgende vertrek"
         },
         "data_description": {
           "zone_cooldown": "Een nieuw bezoek (met een nieuwe vernieuwing bij binnenkomst) begint pas als de zone zo lang leeg was. Meerdere personen delen één bezoek.",
-          "minute_updates": "Uit: de entiteiten worden alleen bijgewerkt bij een verversing of als een bus vertrekt (minder schrijfacties). De getoonde minuten lopen dan niet mee."
+          "minute_updates": "Uit: de entiteiten worden alleen bijgewerkt bij een verversing of als een bus vertrekt (minder schrijfacties). De getoonde minuten lopen dan niet mee.",
+          "live_only": "Aan: een vertrek zonder rijdend voertuig (status anders dan DRIVING of ARRIVED, dus alleen dienstregeling) wordt niet gebruikt voor de status van de halte, het volgende vertrek en de lijnsensoren; die tonen dan Onbekend of Geen bussen. De lijsten in de attributen bevatten nog steeds alles, met per vertrek een `live`-vlag."
         },
         "sections": {
           "defaults": {

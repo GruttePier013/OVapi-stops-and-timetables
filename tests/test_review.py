@@ -15,7 +15,7 @@ from custom_components.ovapi_bus_departures.diagnostics import TO_REDACT
 from custom_components.ovapi_bus_departures.parser import sort_lines, sorted_lines
 from custom_components.ovapi_bus_departures.texts import Texts
 
-from .test_integration import URL, entry, passes, setup
+from .test_integration import URL, _tz, entry, passes, setup  # noqa: F401
 
 LOC = {"lat": 52.08, "lon": 5.25}
 
@@ -155,3 +155,32 @@ async def test_line_sensor_ids_are_stable_across_reload(hass, aioclient_mock, fr
     await hass.async_block_till_done()
     after = {x.entity_id for x in er.async_entries_for_config_entry(er.async_get(hass), e.entry_id)}
     assert before == after
+
+
+async def test_live_flag_per_departure(hass, aioclient_mock, freezer):
+    freezer.move_to("2026-10-21 14:00:00+02:00")
+    aioclient_mock.get(URL.format("90100421"), json=passes("90100421"))
+    await setup(hass, entry([{"tpc_codes": ["90100421"], "name": "K"}]))
+    deps = hass.states.get(eid(hass, "departures")).attributes
+    assert [(d["line"], d["live"]) for d in deps["departures"]] == [("74", True), ("34", False)]  # DRIVING / PLANNED
+    assert deps["live_count"] == 1
+    assert hass.states.get("sensor.ovapi_k_next_departure").attributes["live"] is True
+    assert hass.states.get("sensor.ovapi_k_line_34").attributes["live"] is False
+
+
+async def test_live_only_option_hides_timetable_only_departures_from_states(hass, aioclient_mock, freezer):
+    freezer.move_to("2026-10-21 14:10:00+02:00")  # bus 74 (DRIVING) is gone, only 34 (PLANNED) is left
+    aioclient_mock.get(URL.format("90100421"), json=passes("90100421"))
+    e = entry([{"tpc_codes": ["90100421"], "name": "K", **LOC}], live_only=True)
+    await setup(hass, e)
+    assert hass.states.get("sensor.ovapi_k_next_departure").state == "unknown"
+    assert hass.states.get("sensor.ovapi_k_line_34").state == "unknown"
+    deps = hass.states.get(eid(hass, "departures"))
+    assert deps.state == "No departures"
+    assert [(d["line"], d["live"]) for d in deps.attributes["departures"]] == [("34", False)]  # still listed
+    # without the option the planned bus does count
+    await hass.config_entries.async_unload(e.entry_id)
+    hass.config_entries.async_update_entry(e, options={})
+    await hass.config_entries.async_setup(e.entry_id)
+    await hass.async_block_till_done()
+    assert hass.states.get("sensor.ovapi_k_next_departure").state != "unknown"

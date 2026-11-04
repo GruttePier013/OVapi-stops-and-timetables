@@ -33,6 +33,7 @@ from .const import (
     CONF_EXTRA_LINES,
     CONF_LINE_SENSORS,
     CONF_LINES,
+    CONF_LIVE_ONLY,
     CONF_LOCATION,
     CONF_MAP_LOGO,
     CONF_MARKER,
@@ -765,6 +766,7 @@ class DutchBusOptionsFlow(EditStopsMixin, StopFlowMixin, config_entries.OptionsF
                 vol.Optional(CONF_LINE_SENSORS, default=opts.get(CONF_LINE_SENSORS, DEFAULT_LINE_SENSORS)): bool,
                 vol.Optional(CONF_MAP_LOGO, default=opts.get(CONF_MAP_LOGO, True)): bool,
                 vol.Optional(CONF_MINUTE_UPDATES, default=opts.get(CONF_MINUTE_UPDATES, True)): bool,
+                vol.Optional(CONF_LIVE_ONLY, default=opts.get(CONF_LIVE_ONLY, False)): bool,
                 vol.Required(CONF_SECTION_DEFAULTS): section(
                     vol.Schema(
                         {
@@ -822,6 +824,7 @@ class DutchBusOptionsFlow(EditStopsMixin, StopFlowMixin, config_entries.OptionsF
                     CONF_ZONE_COOLDOWN: int(user_input.get(CONF_ZONE_COOLDOWN, DEFAULT_ZONE_COOLDOWN)),
                     CONF_MAP_LOGO: bool(user_input.get(CONF_MAP_LOGO, True)),
                     CONF_MINUTE_UPDATES: bool(user_input.get(CONF_MINUTE_UPDATES, True)),
+                    CONF_LIVE_ONLY: bool(user_input.get(CONF_LIVE_ONLY, False)),
                     CONF_STALE_HOURS: int(user_input[CONF_STALE_HOURS]),
                     CONF_LINE_SENSORS: bool(user_input.get(CONF_LINE_SENSORS, DEFAULT_LINE_SENSORS)),
                 },

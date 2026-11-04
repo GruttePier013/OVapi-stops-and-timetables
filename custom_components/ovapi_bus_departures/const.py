@@ -81,7 +81,7 @@ ID_SUFFIX = {
     "paused": "paused",
 }
 ENTITY_ID_PREFIX = "ovapi"
-USER_AGENT = "HomeAssistant-ovapi_bus_departures/1.0.1 (custom integration; OVapi KV78Turbo client)"
+USER_AGENT = "HomeAssistant-ovapi_bus_departures/1.0.2 (custom integration; OVapi KV78Turbo client)"
 STATIC_URL = "/ovapi_bus_departures_static"  # public path for the map logo (entity_picture)
 PDOK_URL = "https://api.pdok.nl/bzk/locatieserver/search/v3_1/free"
 # v0.ovapi.nl has a mismatching certificate (the YAML sensors also use verify_ssl: false)
@@ -95,6 +95,7 @@ AUTO_MIN_GAP = 60  # minimum seconds between two automatic refreshes of the same
 MANUAL_MIN_GAP = 10  # minimum seconds between two manual refreshes (button/action) of the same stop
 DAY_START_HOUR = 6  # refresh when the last bus is gone: only between these local hours
 DAY_END_HOUR = 22
+CONF_LIVE_ONLY = "live_only"  # only departures with a live vehicle count as next departure (default off)
 CONF_MINUTE_UPDATES = "minute_updates"  # rewrite minutes-until every minute (default on)
 
 # Defaults for new stops (Configure -> Settings) and error protection
