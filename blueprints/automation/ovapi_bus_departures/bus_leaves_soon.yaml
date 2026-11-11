@@ -1,0 +1,68 @@
+blueprint:
+  name: OVapi - notify when the bus leaves soon
+  description: >
+    Sends a notification when the next departure of a stop is at most the chosen number of minutes away.
+    It fires once when the time drops below the limit (not every minute). Use a live-only setup
+    (Configure -> Settings -> "Only live departures count as next departure") if you only want to be
+    warned for buses that are really driving.
+  domain: automation
+  author: GruttePier013
+  source_url: https://github.com/GruttePier013/OVapi-stops-and-timetables/blob/main/blueprints/automation/ovapi_bus_departures/bus_leaves_soon.yaml
+  input:
+    next_departure:
+      name: Next departure sensor
+      description: The "Next departure" sensor of the stop.
+      selector:
+        entity:
+          domain: sensor
+          integration: ovapi_bus_departures
+          device_class: timestamp
+    minutes:
+      name: Minutes before departure
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 60
+          mode: box
+          unit_of_measurement: min
+    notify_action:
+      name: Notification action
+      description: What to do when the bus leaves soon. `{{ line }}`, `{{ destination }}` and `{{ minutes }}` are available.
+      default: []
+      selector:
+        action: {}
+    extra_conditions:
+      name: Extra conditions
+      description: For example "only on weekdays" or "only when somebody is home".
+      default: []
+      selector:
+        condition: {}
+
+mode: single
+max_exceeded: silent
+
+# trigger_variables are the only variables a trigger can use; the action needs its own copy
+trigger_variables:
+  next_departure: !input next_departure
+  limit: !input minutes
+
+variables:
+  next_departure: !input next_departure
+
+trigger:
+  - trigger: template
+    value_template: >
+      {% set t = states(next_departure) | as_datetime(none) %}
+      {{ t is not none and 0 <= (t - now()).total_seconds() / 60 <= limit | float(5) }}
+
+condition: !input extra_conditions
+
+action:
+  - variables:
+      line: "{{ state_attr(next_departure, 'line') }}"
+      destination: "{{ state_attr(next_departure, 'destination') }}"
+      minutes: >
+        {{ ((states(next_departure) | as_datetime - now()).total_seconds() / 60) | round(0) | int }}
+  - alias: Notify
+    sequence: !input notify_action

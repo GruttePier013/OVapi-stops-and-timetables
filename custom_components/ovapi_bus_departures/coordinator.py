@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
@@ -17,12 +18,15 @@ from homeassistant.util import dt as dt_util
 from .api import DutchBusApi, OvapiBlocked
 from .const import (
     AUTO_MIN_GAP,
+    CONF_DELAY_EVENT_MIN,
     CONF_LIVE_ONLY,
     CONF_MAX_ERRORS,
     CONF_STALE_HOURS,
     CONF_ZONE_COOLDOWN,
     DAY_END_HOUR,
     DAY_START_HOUR,
+    DEAD_STOP_DAYS,
+    DEFAULT_DELAY_EVENT_MIN,
     DEFAULT_PROXIMITY_RADIUS,
     DEFAULT_STALE_HOURS,
     DEFAULT_ZONE_COOLDOWN,
@@ -34,7 +38,16 @@ from .const import (
     STOP_BACKOFF_MAX,
 )
 from .defaults import get_protection
-from .parser import build_view, count_passes, describe_tpc, parse_messages, parse_passes, sorted_lines
+from .health import StopHealth
+from .parser import (
+    build_view,
+    count_passes,
+    describe_tpc,
+    journey_states,
+    parse_messages,
+    parse_passes,
+    sorted_lines,
+)
 from .schedules import (
     DEFAULT_SCHEDULE,
     DEFAULT_ZONE_INTERVAL,
@@ -63,6 +76,10 @@ def issue_id(key: str) -> str:
     return f"stop_paused_{key}"
 
 
+def dead_issue_id(key: str) -> str:
+    return f"stop_no_departures_{key}"
+
+
 class StopCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     """Fetches the passes of one or more TPC codes (like a combined station sensor)."""
 
@@ -73,8 +90,10 @@ class StopCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         api: DutchBusApi,
         stop: dict[str, Any],
         texts: Texts | None = None,
+        health: StopHealth | None = None,
     ) -> None:
         self.t = texts or Texts()
+        self.health = health
         self.entry = entry
         self.api = api
         self.stop = stop
@@ -112,6 +131,8 @@ class StopCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._auto = False
         self._tick_listeners: set[CALLBACK_TYPE] = set()
         self._proximity_listeners: set[CALLBACK_TYPE] = set()
+        self._event_listeners: set[Callable[[str, dict[str, Any]], None]] = set()
+        self._journeys: dict[tuple[str, str], dict[str, Any]] | None = None  # None: nothing seen yet (no events)
         self._unsub_tick: CALLBACK_TYPE | None = None
         self.last_fetch_monotonic: float = -1e9
         self._view_cache: tuple[int, dict[str, Any], list[dict[str, Any]]] | None = None
@@ -330,6 +351,7 @@ class StopCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._unsub_tick = None
         self._tick_listeners.clear()
         self._proximity_listeners.clear()
+        self._event_listeners.clear()
         await super().async_shutdown()
 
     async def _async_update_data(self) -> dict[str, Any]:
@@ -346,7 +368,70 @@ class StopCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._register_error(f"{type(err).__name__}: {err}")
             raise UpdateFailed(f"Unexpected error: {err}") from err
         self._register_success()
+        self._detect_events(data)
+        self._track_health(data)
         return data
+
+    # ---- events (cancelled / delayed / live) for automations
+    @callback
+    def async_add_event_listener(self, cb: Callable[[str, dict[str, Any]], None]) -> CALLBACK_TYPE:
+        """The event entity listens here; events are only emitted when a refresh shows a change."""
+        self._event_listeners.add(cb)
+        return lambda: self._event_listeners.discard(cb)
+
+    def _detect_events(self, data: dict[str, Any]) -> None:
+        """Compare the journeys with the previous refresh. The first refresh and new journeys only set the baseline."""
+        threshold = int(self.entry.options.get(CONF_DELAY_EVENT_MIN, DEFAULT_DELAY_EVENT_MIN))
+        current = journey_states(data["departures"], dt_util.now(), self.lines, self.destinations, GRACE_SECONDS)
+        previous = self._journeys
+        tracked: dict[tuple[str, str], dict[str, Any]] = {}
+        events: list[tuple[str, dict[str, Any]]] = []
+        for ident, cur in current.items():
+            prev = previous.get(ident) if previous is not None else None
+            baseline = prev["baseline"] if prev else cur["delay_min"]
+            if prev is not None and not cur["cancelled"]:
+                if cur["live"] and not prev["live"]:
+                    events.append(("live", cur))
+                if cur["delay_min"] - baseline >= threshold:
+                    events.append(("delayed", cur))
+                    baseline = cur["delay_min"]
+                elif baseline - cur["delay_min"] >= threshold:
+                    baseline = cur["delay_min"]  # caught up: a new delay fires again
+            elif prev is not None and not prev["cancelled"]:
+                events.append(("cancelled", cur))
+            tracked[ident] = {"cancelled": cur["cancelled"], "live": cur["live"], "baseline": baseline}
+        self._journeys = tracked  # journeys that are gone are dropped here, so this never grows
+        for event_type, cur in events:
+            attrs = {k: cur[k] for k in ("line", "destination", "planned", "time", "delay_min", "minutes_until", "status")}
+            for cb in list(self._event_listeners):
+                try:
+                    cb(event_type, attrs)
+                except Exception:  # noqa: BLE001 - a failing listener must not break the refresh
+                    _LOGGER.exception("Handling a departure event of %s failed", self.key)
+
+    # ---- a stop that returns nothing at all, for days
+    def _track_health(self, data: dict[str, Any]) -> None:
+        """Repair issue when OVapi has returned no departure at all (daytime refreshes) for DEAD_STOP_DAYS days."""
+        if self.health is None or data["partial"]:
+            return
+        if data["fetched_count"] > 0:
+            self.health.set_empty_since(self.key, None)
+            ir.async_delete_issue(self.hass, DOMAIN, dead_issue_id(self.key))
+            return
+        now = dt_util.utcnow()
+        if DAY_START_HOUR <= dt_util.as_local(now).hour < DAY_END_HOUR:  # empty at night is normal
+            self.health.set_empty_since(self.key, now)
+        since = self.health.empty_since(self.key)
+        if since is not None and now - since >= timedelta(days=DEAD_STOP_DAYS):
+            ir.async_create_issue(
+                self.hass,
+                DOMAIN,
+                dead_issue_id(self.key),
+                is_fixable=False,
+                severity=ir.IssueSeverity.WARNING,
+                translation_key="stop_no_departures",
+                translation_placeholders={"name": self.stop["name"], "days": str(DEAD_STOP_DAYS)},
+            )
 
     # ---- error protection
     def _register_error(self, message: str) -> None:

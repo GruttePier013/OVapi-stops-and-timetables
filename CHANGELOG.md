@@ -2,6 +2,25 @@
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.1.0]
+### Added
+- Action `ovapi_bus_departures.get_departures` (with a response): the upcoming departures for a specific stop (device or entity as target) and/or all stops inside a zone, optionally filtered by line, `limit` and `live_only`. It uses the data the stops already have and does not call OVapi.
+- Event entity *Departure events* per stop: `cancelled`, `delayed` and `live`, with line, destination, times and delay as attributes. New setting *Delay that fires a 'delayed' event* (default 5 minutes).
+- Binary sensor *Live departure*: on while at least one upcoming bus is really driving. (The `live` flag was already in the attributes; it is not in the summary text.)
+- `refresh` accepts `entity_id: all`, and devices and areas as target.
+- Repair issue when OVapi returns no departure at all for a stop for 7 days (daytime refreshes); it clears itself when departures return or the stop is removed.
+- Blueprint *OVapi - notify when the bus leaves soon* (`blueprints/automation/ovapi_bus_departures/`).
+- README: examples for the action, events, a Markdown dashboard card and the blueprint.
+- Contract test with an OVapi answer (`tests/fixtures/ovapi_sample.json`, hand-written from the documented format) and `scripts/capture_ovapi_fixture.py` to store a real answer; every `tests/fixtures/ovapi_*.json` is tested automatically.
+
+### Changed
+- New logo and icon (bus at a stop), including a `dark_logo` with light text for dark themes.
+- Changing the TPC codes of a stop keeps its device and entities (the stop key is stored and no longer derived from the first code).
+
+## [1.0.3]
+### Fixed
+- Setup failed on recent Home Assistant versions with `AttributeError: 'RestoreStateData' object has no attribute 'last_states'`. That code only migrated number entities of the old `ovapi_bustijden` domain, which cannot exist in this domain, so it was removed (together with the helper `nearest_option`). Setup no longer touches the restore-state internals.
+
 ## [1.0.2]
 ### Added
 - Certainty indicator: every departure has a `live` flag (`true` when OVapi reports the vehicle as `DRIVING` or `ARRIVED`, `false` when there is only a timetable time, for example `PLANNED`). It is in the `departures` attribute, on the *Next departure* sensor, and on the line sensors (also in `upcoming`). The *Departures* sensor has `live_count`.

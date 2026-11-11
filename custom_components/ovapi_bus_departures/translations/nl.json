@@ -319,12 +319,14 @@
           "line_sensors": "Per lijn een sensor aanmaken (bijv. Lijn 74)",
           "zone_cooldown": "Afkoeltijd tussen bezoeken (minuten)",
           "minute_updates": "Minuten tot vertrek elke minuut bijwerken",
-          "live_only": "Alleen live vertrektijden tellen als volgende vertrek"
+          "live_only": "Alleen live vertrektijden tellen als volgende vertrek",
+          "delay_event_minutes": "Vertraging die een 'vertraagd'-gebeurtenis geeft (minuten)"
         },
         "data_description": {
           "zone_cooldown": "Een nieuw bezoek (met een nieuwe vernieuwing bij binnenkomst) begint pas als de zone zo lang leeg was. Meerdere personen delen één bezoek.",
           "minute_updates": "Uit: de entiteiten worden alleen bijgewerkt bij een verversing of als een bus vertrekt (minder schrijfacties). De getoonde minuten lopen dan niet mee.",
-          "live_only": "Aan: een vertrek zonder rijdend voertuig (status anders dan DRIVING of ARRIVED, dus alleen dienstregeling) wordt niet gebruikt voor de status van de halte, het volgende vertrek en de lijnsensoren; die tonen dan Onbekend of Geen bussen. De lijsten in de attributen bevatten nog steeds alles, met per vertrek een `live`-vlag."
+          "live_only": "Aan: een vertrek zonder rijdend voertuig (status anders dan DRIVING of ARRIVED, dus alleen dienstregeling) wordt niet gebruikt voor de status van de halte, het volgende vertrek en de lijnsensoren; die tonen dan Onbekend of Geen bussen. De lijsten in de attributen bevatten nog steeds alles, met per vertrek een `live`-vlag.",
+          "delay_event_minutes": "De entiteit *Vertrekgebeurtenissen* geeft `delayed` als een bus zoveel minuten extra vertraging krijgt (en opnieuw bij elke volgende stap van die grootte). Daarnaast `cancelled` en `live`."
         },
         "sections": {
           "defaults": {
@@ -498,6 +500,23 @@
     "binary_sensor": {
       "paused": {
         "name": "Gepauzeerd"
+      },
+      "live_departure": {
+        "name": "Live vertrek"
+      }
+    },
+    "event": {
+      "departure_events": {
+        "name": "Vertrekgebeurtenissen",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "cancelled": "Geannuleerd",
+              "delayed": "Vertraagd",
+              "live": "Live"
+            }
+          }
+        }
       }
     }
   },
@@ -505,6 +524,28 @@
     "refresh": {
       "name": "Halte vernieuwen",
       "description": "Vernieuwt alle haltes, of alleen de haltes (apparaten of entiteiten) die je als doel opgeeft."
+    },
+    "get_departures": {
+      "name": "Vertrektijden opvragen",
+      "description": "Geeft de komende vertrektijden van een of meer haltes terug (geen nieuw OVapi-verzoek; de laatst opgehaalde gegevens worden gebruikt). Kies haltes als doel en/of een zone voor alle haltes binnen die zone.",
+      "fields": {
+        "zone": {
+          "name": "Zone",
+          "description": "Neem alle haltes binnen deze zone mee."
+        },
+        "line": {
+          "name": "Lijn",
+          "description": "Alleen deze lijnen, bijvoorbeeld `74` of `74, 34`."
+        },
+        "limit": {
+          "name": "Maximum",
+          "description": "Maximaal aantal vertrektijden (per halte en in de gecombineerde lijst)."
+        },
+        "live_only": {
+          "name": "Alleen live",
+          "description": "Alleen vertrektijden met een rijdend voertuig (status DRIVING of ARRIVED)."
+        }
+      }
     }
   },
   "issues": {
@@ -519,6 +560,10 @@
     "api_paused": {
       "title": "OVapi is tijdelijk gepauzeerd",
       "description": "Na {errors} opeenvolgende fouten (of een melding dat er te veel verzoeken waren) worden automatische aanroepen tijdelijk gepauzeerd. De laatst bekende vertrektijden blijven zichtbaar. De integratie probeert het vanzelf opnieuw; handmatig vernieuwen kan altijd."
+    },
+    "stop_no_departures": {
+      "title": "Geen vertrektijden bij halte {name}",
+      "description": "OVapi heeft al {days} dagen geen enkel vertrek teruggegeven voor {name}. De halte is mogelijk opgeheven, verplaatst of hernummerd. Zoek de halte opnieuw onder Configureren → Haltes zoeken en vervang deze."
     }
   },
   "selector": {
@@ -582,6 +627,12 @@
     },
     "explain_approach_only": {
       "message": "Aan: de vernieuwingen in de zone (na de eerste bij binnenkomst) gebeuren alleen als iemand minstens {meters} m dichterbij is gekomen sinds de vorige vernieuwing."
+    },
+    "no_stop_selected": {
+      "message": "Kies minimaal een halte (apparaat of entiteit) als doel of een zone."
+    },
+    "unknown_zone": {
+      "message": "{zone} is geen zone met een positie."
     }
   },
   "title": "OVapi bussen en halteinformatie"

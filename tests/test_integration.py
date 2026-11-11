@@ -749,10 +749,12 @@ def test_brand_logos_are_transparent_with_rounded_corners():
 
     from PIL import Image  # noqa: PLC0415
     brand = Path(__file__).parent.parent / "custom_components/ovapi_bus_departures/brand"
-    for name in ("icon", "icon@2x", "logo", "logo@2x"):
+    for name in ("icon", "icon@2x", "logo", "logo@2x", "dark_logo", "dark_logo@2x"):
         im = Image.open(brand / f"{name}.png").convert("RGBA")
         assert im.getpixel((0, 0))[3] == 0 and im.getpixel((im.width - 1, im.height - 1))[3] == 0
         assert im.getpixel((im.width // 2, im.height // 2))[3] > 0 or im.getpixel((im.width // 2, im.height // 3))[3] > 0
+        assert min(im.size) in (256, 512) and (name.startswith("icon") is False or im.width == im.height)
+        assert (min(im.size) == 512) == name.endswith("@2x")
 
 
 async def test_stale_data_service_and_zone_stop(hass, aioclient_mock, freezer):

@@ -21,8 +21,11 @@ def normalize_stop(stop: dict[str, Any]) -> dict[str, Any] | None:
 
 
 def stop_key(stop: dict[str, Any]) -> str:
-    """Stable id of a stop = first TPC code (same as the device id in 0.1.x)."""
-    return stop["tpc_codes"][0]
+    """Stable id of a stop: the stored ``key`` if there is one, otherwise the first TPC code (the id of 0.1.x).
+
+    Editing the codes of a stop stores the original key, so the device and entities (and their history) stay.
+    """
+    return str(stop.get("key") or stop["tpc_codes"][0])
 
 
 def get_stops(entry: Any) -> list[dict[str, Any]]:

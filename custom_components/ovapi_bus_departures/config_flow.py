@@ -28,6 +28,7 @@ from .const import (
     CONF_DEFAULT_SCHEDULE,
     CONF_DEFAULT_ZONE_INTERVAL,
     CONF_DEFAULT_ZONE_STOP_AFTER,
+    CONF_DELAY_EVENT_MIN,
     CONF_DESTINATIONS,
     CONF_DIRECTION_IN_NAME,
     CONF_EXTRA_LINES,
@@ -50,6 +51,7 @@ from .const import (
     CONF_STOPS,
     CONF_TPC_CODES,
     CONF_ZONE_COOLDOWN,
+    DEFAULT_DELAY_EVENT_MIN,
     DEFAULT_LINE_SENSORS,
     DEFAULT_MODES,
     DEFAULT_RADIUS,
@@ -633,12 +635,10 @@ class EditStopsMixin(StopFlowMixin):
                         "marker": _marker_override(current, user_input),
                         "name": (user_input.get(CONF_NAME) or "").strip() or current["name"],
                         "tpc_codes": codes,
+                        "key": self._edit_key,  # the device and entities stay, also when the first code changes
                         "lines": _combine_lines(user_input.get(CONF_LINES), user_input.get(CONF_EXTRA_LINES)),
                         "destinations": _split_list(user_input.get(CONF_DESTINATIONS)),
                     }
-                    others = [s for s in stops if stop_key(s) != self._edit_key]
-                    if stop_key(updated) != self._edit_key and stop_key(updated) in {stop_key(s) for s in others}:
-                        return self.async_abort(reason="already_configured")
                     return self._save_stops([updated if stop_key(s) == self._edit_key else s for s in stops])
         line_opts = await self._async_line_options(current["tpc_codes"], current["lines"])
         fields: dict[Any, Any] = {
@@ -767,6 +767,11 @@ class DutchBusOptionsFlow(EditStopsMixin, StopFlowMixin, config_entries.OptionsF
                 vol.Optional(CONF_MAP_LOGO, default=opts.get(CONF_MAP_LOGO, True)): bool,
                 vol.Optional(CONF_MINUTE_UPDATES, default=opts.get(CONF_MINUTE_UPDATES, True)): bool,
                 vol.Optional(CONF_LIVE_ONLY, default=opts.get(CONF_LIVE_ONLY, False)): bool,
+                vol.Optional(
+                    CONF_DELAY_EVENT_MIN, default=int(opts.get(CONF_DELAY_EVENT_MIN, DEFAULT_DELAY_EVENT_MIN))
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(min=1, max=60, step=1, mode=selector.NumberSelectorMode.BOX)
+                ),
                 vol.Required(CONF_SECTION_DEFAULTS): section(
                     vol.Schema(
                         {
@@ -825,6 +830,7 @@ class DutchBusOptionsFlow(EditStopsMixin, StopFlowMixin, config_entries.OptionsF
                     CONF_MAP_LOGO: bool(user_input.get(CONF_MAP_LOGO, True)),
                     CONF_MINUTE_UPDATES: bool(user_input.get(CONF_MINUTE_UPDATES, True)),
                     CONF_LIVE_ONLY: bool(user_input.get(CONF_LIVE_ONLY, False)),
+                    CONF_DELAY_EVENT_MIN: int(user_input.get(CONF_DELAY_EVENT_MIN, DEFAULT_DELAY_EVENT_MIN)),
                     CONF_STALE_HOURS: int(user_input[CONF_STALE_HOURS]),
                     CONF_LINE_SENSORS: bool(user_input.get(CONF_LINE_SENSORS, DEFAULT_LINE_SENSORS)),
                 },

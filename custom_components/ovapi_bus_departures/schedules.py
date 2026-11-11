@@ -52,14 +52,6 @@ ZONE_STOP_AFTER: dict[str, int | None] = {
 DEFAULT_ZONE_STOP_AFTER = "30_min"
 
 
-def nearest_option(options: dict[str, int | float | None], minutes: float | None) -> str | None:
-    """Closest option key for a number of minutes (used to migrate the old number entities)."""
-    if minutes is None:
-        return None
-    numeric = {k: v for k, v in options.items() if v is not None}
-    return min(numeric, key=lambda k: abs(numeric[k] - minutes)) if numeric else None
-
-
 def fires_at(key: str, hour: int, minute: int) -> bool:
     spec = SCHEDULES.get(key)
     if not spec:

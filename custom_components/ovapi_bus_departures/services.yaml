@@ -2,3 +2,29 @@ refresh:
   target:
     entity:
       integration: ovapi_bus_departures
+
+get_departures:
+  target:
+    entity:
+      integration: ovapi_bus_departures
+  fields:
+    zone:
+      selector:
+        entity:
+          filter:
+            domain: zone
+    line:
+      example: "74, 34"
+      selector:
+        text:
+    limit:
+      default: 10
+      selector:
+        number:
+          min: 1
+          max: 100
+          mode: box
+    live_only:
+      default: false
+      selector:
+        boolean:

@@ -319,12 +319,14 @@
           "line_sensors": "Create a sensor per line (e.g. Line 74)",
           "zone_cooldown": "Cool-down between visits (minutes)",
           "minute_updates": "Update minutes-until-departure every minute",
-          "live_only": "Only live departures count as next departure"
+          "live_only": "Only live departures count as next departure",
+          "delay_event_minutes": "Delay that fires a 'delayed' event (minutes)"
         },
         "data_description": {
           "zone_cooldown": "A new visit (with a new refresh on entry) only starts after the zone was empty this long. Several persons share one visit.",
           "minute_updates": "Off: entities are only updated on a refresh or when a bus leaves (fewer state writes). The shown minutes then do not count down.",
-          "live_only": "On: a departure without a live vehicle (status other than DRIVING or ARRIVED, so only the timetable) is not used for the states of the stop, the next departure and the line sensors; they show Unknown or No departures instead. The lists in the attributes still contain everything, with a `live` flag per departure."
+          "live_only": "On: a departure without a live vehicle (status other than DRIVING or ARRIVED, so only the timetable) is not used for the states of the stop, the next departure and the line sensors; they show Unknown or No departures instead. The lists in the attributes still contain everything, with a `live` flag per departure.",
+          "delay_event_minutes": "The *Departure events* entity fires `delayed` when a bus gets this many minutes of extra delay (and again for every further step of this size). It also fires `cancelled` and `live`."
         },
         "sections": {
           "defaults": {
@@ -498,6 +500,23 @@
     "binary_sensor": {
       "paused": {
         "name": "Paused"
+      },
+      "live_departure": {
+        "name": "Live departure"
+      }
+    },
+    "event": {
+      "departure_events": {
+        "name": "Departure events",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "cancelled": "Cancelled",
+              "delayed": "Delayed",
+              "live": "Live"
+            }
+          }
+        }
       }
     }
   },
@@ -505,6 +524,28 @@
     "refresh": {
       "name": "Refresh stop",
       "description": "Refreshes all stops, or only the stops (devices or entities) you pick as target."
+    },
+    "get_departures": {
+      "name": "Get departures",
+      "description": "Returns the upcoming departures of one or more stops (no new OVapi request; the last fetched data is used). Pick stops as target and/or a zone to get all stops inside that zone.",
+      "fields": {
+        "zone": {
+          "name": "Zone",
+          "description": "Include all stops located inside this zone."
+        },
+        "line": {
+          "name": "Line",
+          "description": "Only these lines, for example `74` or `74, 34`."
+        },
+        "limit": {
+          "name": "Maximum",
+          "description": "Maximum number of departures (per stop and in the combined list)."
+        },
+        "live_only": {
+          "name": "Live only",
+          "description": "Only departures with a live vehicle (status DRIVING or ARRIVED)."
+        }
+      }
     }
   },
   "issues": {
@@ -519,6 +560,10 @@
     "api_paused": {
       "title": "OVapi is paused for a while",
       "description": "After {errors} consecutive errors (or a 'too many requests' answer) automatic calls are paused temporarily. The last known departures stay visible. The integration retries by itself; refreshing manually always works."
+    },
+    "stop_no_departures": {
+      "title": "No departures at stop {name}",
+      "description": "OVapi has not returned a single departure for {name} for {days} days. The stop may have been closed, moved or renumbered. Search the stop again under Configure → Search stops and replace this one."
     }
   },
   "selector": {
@@ -582,6 +627,12 @@
     },
     "explain_approach_only": {
       "message": "On: refreshes in the zone (after the first one on entry) only happen when someone got at least {meters} m closer since the previous refresh."
+    },
+    "no_stop_selected": {
+      "message": "Choose at least one stop (device or entity) as target or a zone."
+    },
+    "unknown_zone": {
+      "message": "{zone} is not a zone with a position."
     }
   },
   "title": "OVapi bus departures"

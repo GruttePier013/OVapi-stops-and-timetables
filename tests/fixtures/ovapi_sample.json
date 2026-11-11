@@ -1,0 +1,93 @@
+{
+  "_note": "Hand-written sample in the documented OVapi KV78Turbo format (v0.ovapi.nl/tpc/<code>). NOT a captured response: replace or extend it with scripts/capture_ovapi_fixture.py. Names are fictional.",
+  "30000001": {
+    "Stop": {
+      "TimingPointCode": "30000001",
+      "TimingPointName": "Voorbeeldlaan",
+      "TimingPointTown": "Voorbeeldstad",
+      "StopAreaCode": "vsta",
+      "Latitude": 52.0801,
+      "Longitude": 5.2502,
+      "TimingPointWheelChairAccessible": "ACCESSIBLE",
+      "TimingPointVisualAccessible": "UNKNOWN"
+    },
+    "Passes": {
+      "ARR_10001_1": {
+        "JourneyNumber": 1001,
+        "LocalServiceLevelCode": 1,
+        "LineDirection": 1,
+        "LinePublicNumber": "74",
+        "LineName": "Voorbeeldstad - Station Centraal",
+        "DestinationName50": "Station Centraal",
+        "DestinationCode": "SC",
+        "TransportType": "BUS",
+        "TripStopStatus": "DRIVING",
+        "JourneyStopType": "INTERMEDIATE",
+        "TargetArrivalTime": "2026-10-21T14:04:30",
+        "TargetDepartureTime": "2026-10-21T14:05:00",
+        "ExpectedArrivalTime": "2026-10-21T14:06:30",
+        "ExpectedDepartureTime": "2026-10-21T14:07:00",
+        "LastUpdateTimeStamp": "2026-10-21T13:59:41+02:00"
+      },
+      "ARR_10002_1": {
+        "JourneyNumber": 1002,
+        "LinePublicNumber": "34",
+        "LineDirection": 2,
+        "LineName": "Noordstad - Voorbeeldstad",
+        "DestinationName50": "Noordstad",
+        "TransportType": "BUS",
+        "TripStopStatus": "PLANNED",
+        "JourneyStopType": "INTERMEDIATE",
+        "TargetDepartureTime": "2026-10-21T14:20:00",
+        "ExpectedDepartureTime": "2026-10-21T14:20:00"
+      },
+      "ARR_10003_1": {
+        "JourneyNumber": 1003,
+        "LinePublicNumber": "N74",
+        "LineDirection": 1,
+        "DestinationName50": "Station Centraal",
+        "TransportType": "BUS",
+        "TripStopStatus": "CANCEL",
+        "JourneyStopType": "INTERMEDIATE",
+        "TargetDepartureTime": "2026-10-21T14:35:00",
+        "ExpectedDepartureTime": "2026-10-21T14:35:00"
+      },
+      "ARR_10004_1": {
+        "JourneyNumber": 1004,
+        "LinePublicNumber": "350",
+        "LineDirection": 1,
+        "DestinationName50": "Eindhalte",
+        "TransportType": "BUS",
+        "TripStopStatus": "ARRIVED",
+        "JourneyStopType": "INTERMEDIATE",
+        "TargetDepartureTime": "2026-10-21T14:01:00",
+        "ExpectedDepartureTime": "2026-10-21T14:02:00"
+      },
+      "ARR_10005_1": {
+        "JourneyNumber": 1005,
+        "LinePublicNumber": "73",
+        "DestinationName50": "Voorbeeldlaan",
+        "TransportType": "BUS",
+        "TripStopStatus": "PLANNED",
+        "JourneyStopType": "LAST",
+        "TargetArrivalTime": "2026-10-21T14:12:00",
+        "ExpectedArrivalTime": "2026-10-21T14:12:00"
+      },
+      "ARR_10006_1": {
+        "JourneyNumber": 1006,
+        "LinePublicNumber": "74",
+        "DestinationName50": "Station Centraal",
+        "TransportType": "BUS",
+        "TripStopStatus": "PLANNED",
+        "JourneyStopType": "INTERMEDIATE",
+        "TargetDepartureTime": "2026-10-21T14:45:00",
+        "ExpectedDepartureTime": null
+      },
+      "ARR_10007_1": "not-an-object"
+    }
+  },
+  "30000002": {
+    "Stop": {"TimingPointName": "Zonder coordinaten", "TimingPointTown": "onbekend"},
+    "Passes": {}
+  }
+}

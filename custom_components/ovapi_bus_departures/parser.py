@@ -193,6 +193,40 @@ def build_view(
     return items[:limit] if limit else items
 
 
+def journey_states(
+    departures: Iterable[dict[str, Any]],
+    now: datetime,
+    lines: Iterable[str] = (),
+    destinations: Iterable[str] = (),
+    grace: int = 30,
+) -> dict[tuple[str, str], dict[str, Any]]:
+    """Per journey (TPC, journey id): cancelled / live / delay, for change detection (cancelled ones included)."""
+    now_ts = now.timestamp()
+    wanted = {str(line).casefold() for line in lines}
+    dests = [str(x).casefold() for x in destinations if str(x).strip()]
+    states: dict[tuple[str, str], dict[str, Any]] = {}
+    for d in departures:
+        exp = d["expected"].timestamp()
+        if exp <= now_ts - grace:
+            continue
+        if wanted and d["line"].casefold() not in wanted:
+            continue
+        if dests and not any(x in d["destination"].casefold() for x in dests):
+            continue
+        states[(d["tpc"], d["journey_id"])] = {
+            "cancelled": d["status"] == STATUS_CANCEL,
+            "live": d["status"] in LIVE_STATUSES,
+            "delay_min": round_half_up((exp - d["planned"].timestamp()) / 60),
+            "minutes_until": round_half_up((exp - now_ts) / 60),
+            "line": d["line"],
+            "destination": d["destination"],
+            "time": d["expected"].astimezone(now.tzinfo).strftime("%H:%M"),
+            "planned": d["planned"].astimezone(now.tzinfo).strftime("%H:%M"),
+            "status": d["status"],
+        }
+    return states
+
+
 def summarize(view: list[dict[str, Any]], t: Texts | None = None) -> str:
     """'14:05 (Line 74)' or 'No departures' (texts are translated through ``t``)."""
     t = t or Texts()

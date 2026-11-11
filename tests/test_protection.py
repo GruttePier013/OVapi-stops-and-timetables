@@ -7,7 +7,6 @@ from datetime import timedelta
 
 import pytest
 from homeassistant.const import MATCH_ALL, EntityCategory
-from homeassistant.core import State
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
@@ -16,7 +15,6 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
     async_fire_time_changed,
-    mock_restore_cache,
 )
 from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMockResponse
 
@@ -341,24 +339,6 @@ async def test_first_install_defaults_screen_is_saved(hass, aioclient_mock):
     }
     r = await hass.config_entries.flow.async_configure(r["flow_id"], {"default_zone_interval": "every_10_min"})
     assert r["type"] is FlowResultType.MENU and r["step_id"] == "menu"
-
-
-# ---------------------------------------------------------------- migration of the old numbers
-async def test_old_zone_numbers_migrate_to_selects(hass, aioclient_mock):
-    aioclient_mock.get(URL.format(CODE), json=passes(CODE))
-    e = entry(STOP)
-    e.add_to_hass(hass)
-    reg = er.async_get(hass)
-    old_interval = reg.async_get_or_create("number", DOMAIN, f"{CODE}_zone_interval", config_entry=e)
-    old_stop = reg.async_get_or_create("number", DOMAIN, f"{CODE}_zone_stop_after", config_entry=e)
-    mock_restore_cache(
-        hass, [State(old_interval.entity_id, "10"), State(old_stop.entity_id, "100")]
-    )
-    await hass.config_entries.async_setup(e.entry_id)
-    await hass.async_block_till_done()
-    assert reg.async_get(old_interval.entity_id) is None and reg.async_get(old_stop.entity_id) is None
-    assert hass.states.get(eid(hass, "select", "zone_refresh")).state == "every_10_min"
-    assert hass.states.get(eid(hass, "select", "zone_stop_after")).state == "120_min"  # nearest option to 100
 
 
 # ---------------------------------------------------------------- actions, buttons, devices

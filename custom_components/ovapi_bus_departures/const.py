@@ -9,6 +9,7 @@ PLATFORMS = [
     Platform.SENSOR,
     Platform.BINARY_SENSOR,
     Platform.BUTTON,
+    Platform.EVENT,
     Platform.NUMBER,
     Platform.SELECT,
     Platform.SWITCH,
@@ -38,6 +39,7 @@ MODES = ("bus", "tram", "metro", "boat")  # transport modes with realtime data a
 DEFAULT_MODES = ["bus"]
 DEFAULT_STALE_HOURS = 12
 SERVICE_REFRESH = "refresh"
+SERVICE_GET_DEPARTURES = "get_departures"
 CONF_REFRESH_NDOV = "refresh_ndov"
 
 DEFAULT_RADIUS = 250
@@ -53,6 +55,8 @@ REQUEST_TIMEOUT = 30  # grote stations geven grote antwoorden
 # Stop file from NDOV Loket (CHB): the index is refreshed on use after 14 days
 CHB_INDEX_MAX_AGE = 14 * 24 * 3600
 MAX_DOWNLOAD_BYTES = 200 * 1024 * 1024  # the real files are ~13 MB and ~1 MB; refuse anything absurd
+DEFAULT_DELAY_EVENT_MIN = 5
+DEAD_STOP_DAYS = 7  # a stop that returns nothing at all (daytime) this long gets a repair issue
 MAX_TPC_CODES = 20  # TPC codes per stop (manual entry/editing)
 PREVIEW_MAX_STOPS = 25  # maximum number of stops (directions) in the config flow list
 CONF_COORDINATES = "coordinates"
@@ -79,9 +83,11 @@ ID_SUFFIX = {
     "refresh_on_approach": "refresh_when_in_zone",
     "approach_only": "refresh_only_when_approaching",
     "paused": "paused",
+    "live_departure": "live_departure",
+    "departure_events": "departure_events",
 }
 ENTITY_ID_PREFIX = "ovapi"
-USER_AGENT = "HomeAssistant-ovapi_bus_departures/1.0.2 (custom integration; OVapi KV78Turbo client)"
+USER_AGENT = "HomeAssistant-ovapi_bus_departures/1.1.0 (custom integration; OVapi KV78Turbo client)"
 STATIC_URL = "/ovapi_bus_departures_static"  # public path for the map logo (entity_picture)
 PDOK_URL = "https://api.pdok.nl/bzk/locatieserver/search/v3_1/free"
 # v0.ovapi.nl has a mismatching certificate (the YAML sensors also use verify_ssl: false)
@@ -95,6 +101,7 @@ AUTO_MIN_GAP = 60  # minimum seconds between two automatic refreshes of the same
 MANUAL_MIN_GAP = 10  # minimum seconds between two manual refreshes (button/action) of the same stop
 DAY_START_HOUR = 6  # refresh when the last bus is gone: only between these local hours
 DAY_END_HOUR = 22
+CONF_DELAY_EVENT_MIN = "delay_event_minutes"  # extra delay (minutes) that fires a "delayed" event
 CONF_LIVE_ONLY = "live_only"  # only departures with a live vehicle count as next departure (default off)
 CONF_MINUTE_UPDATES = "minute_updates"  # rewrite minutes-until every minute (default on)
 

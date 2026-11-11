@@ -2,21 +2,18 @@
 from __future__ import annotations
 
 import asyncio
-import contextlib
 import logging
 from datetime import timedelta
 from pathlib import Path
 
-import voluptuous as vol
 from homeassistant.components.http import StaticPathConfig
-from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
-from homeassistant.helpers import restore_state, translation
+from homeassistant.helpers import translation
 from homeassistant.helpers.event import async_track_time_interval
-from homeassistant.helpers.target import TargetSelection, async_extract_referenced_entity_ids
 from homeassistant.helpers.typing import ConfigType
 
 from .api import get_api
@@ -31,19 +28,19 @@ from .const import (
     FIRST_REFRESH_TIMEOUT,
     NDOV_OUTDATED_DAYS,
     PLATFORMS,
-    SERVICE_REFRESH,
     STATIC_URL,
 )
-from .coordinator import DutchBusConfigEntry, DutchBusData, StopCoordinator, issue_id
+from .coordinator import DutchBusConfigEntry, DutchBusData, StopCoordinator, dead_issue_id, issue_id
 from .defaults import get_protection
+from .health import get_health
 from .proximity import ProximityTracker
+from .services import async_register_services
 from .stops import get_stops, stop_key
 from .texts import Texts
 
 _LOGGER = logging.getLogger(__name__)
 ISSUE_NDOV_OUTDATED = "ndov_outdated"
 ISSUE_API_PAUSED = "api_paused"
-MIGRATED_KEY = "migrated_zone_settings"  # old number entities -> new selects (value per stop)
 STARTUP_PARALLEL = 5  # at most this many stops fetch at the same time during the first refresh
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
@@ -55,31 +52,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             [StaticPathConfig(STATIC_URL, str(Path(__file__).parent / "static"), True)]
         )
 
-    async def _refresh(call: ServiceCall) -> None:
-        """Action ``refresh``: no target = all stops, otherwise only the targeted stops (devices/entities/areas)."""
-        coordinators: dict[str, StopCoordinator] = {}
-        for entry in hass.config_entries.async_loaded_entries(DOMAIN):
-            coordinators.update(entry.runtime_data.coordinators)
-        selected = async_extract_referenced_entity_ids(hass, TargetSelection(call.data))
-        if selected.referenced or selected.indirectly_referenced or selected.referenced_devices:
-            dev_reg = dr.async_get(hass)
-            ent_reg = er.async_get(hass)
-            device_ids = set(selected.referenced_devices)
-            for entity_id in selected.referenced | selected.indirectly_referenced:
-                if (reg_entry := ent_reg.async_get(entity_id)) and reg_entry.device_id:
-                    device_ids.add(reg_entry.device_id)
-            keys = {
-                ident[1]
-                for device_id in device_ids
-                if (device := dev_reg.async_get(device_id))
-                for ident in device.identifiers
-                if ident[0] == DOMAIN
-            }
-            coordinators = {k: c for k, c in coordinators.items() if k in keys}
-        await asyncio.gather(*(c.async_manual_refresh() for c in coordinators.values()), return_exceptions=True)
-
-    schema = vol.Schema(cv.TARGET_SERVICE_FIELDS)
-    hass.services.async_register(DOMAIN, SERVICE_REFRESH, _refresh, schema=schema)
+    async_register_services(hass)
     return True
 
 
@@ -103,23 +76,6 @@ def _make_outage_handler(hass: HomeAssistant, api):
     return handler
 
 
-def _migrate_zone_numbers(hass: HomeAssistant, keys: set[str]) -> None:
-    """The zone interval and stop-after numbers became selects: remember their last value, remove the old entities."""
-    ent_reg = er.async_get(hass)
-    stored = restore_state.async_get(hass).last_states
-    migrated: dict[str, dict[str, float]] = hass.data.setdefault(DOMAIN, {}).setdefault(MIGRATED_KEY, {})
-    for key in keys:
-        for suffix, name in (("zone_interval", "interval"), ("zone_stop_after", "stop_after")):
-            entity_id = ent_reg.async_get_entity_id("number", DOMAIN, f"{key}_{suffix}")
-            if not entity_id:
-                continue
-            last = stored.get(entity_id)
-            if last is not None:
-                with contextlib.suppress(TypeError, ValueError):  # unknown/unavailable: the select uses its default
-                    migrated.setdefault(key, {})[name] = float(last.state.state)
-            ent_reg.async_remove(entity_id)
-
-
 async def async_setup_entry(hass: HomeAssistant, entry: DutchBusConfigEntry) -> bool:
     protection = get_protection(entry.options)
     api = get_api(hass)
@@ -129,9 +85,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: DutchBusConfigEntry) -> 
     stops = get_stops(entry)
     texts = Texts(await translation.async_get_translations(hass, hass.config.language, "exceptions", [DOMAIN]))
 
+    health = get_health(hass)
+    await health.async_load()
     coordinators: dict[str, StopCoordinator] = {}
     for stop in stops:
-        coordinator = StopCoordinator(hass, entry, api, stop, texts)
+        coordinator = StopCoordinator(hass, entry, api, stop, texts, health)
         coordinators[coordinator.key] = coordinator
 
     # First refresh in the background (at most STARTUP_PARALLEL stops at a time, combined into few OVapi requests):
@@ -151,9 +109,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: DutchBusConfigEntry) -> 
         ids = {i[1] for i in device.identifiers if i[0] == DOMAIN}
         if ids and not ids & current:
             dev_reg.async_remove_device(device.id)  # a device belongs to a single config entry
+            for key in ids:
+                ir.async_delete_issue(hass, DOMAIN, dead_issue_id(key))
+                health.set_empty_since(key, None)
 
     registry = er.async_get(hass)
-    _migrate_zone_numbers(hass, current)
     for old in er.async_entries_for_config_entry(registry, entry.entry_id):
         unique_id = old.unique_id or ""
         if old.domain == "sensor" and "_line_" in unique_id and not entry.options.get(CONF_LINE_SENSORS, DEFAULT_LINE_SENSORS):
