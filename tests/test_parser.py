@@ -25,7 +25,7 @@ NOW = datetime(2026, 10, 21, 14, 0, 0, tzinfo=TZ)
 
 def payload():
     return {"90100421": {"Stop": {"TimingPointName": "Voorbeeldlaan", "TimingPointTown": "Voorbeeldstad",
-                                  "Latitude": 52.08, "Longitude": 5.25},
+                                  "Latitude": 52.08, "Longitude": 4.25},
         "Passes": {
             "a": {"LinePublicNumber": "74", "DestinationName50": "Station Centraal",
                   "TargetDepartureTime": "2026-10-21T14:05:00", "ExpectedDepartureTime": "2026-10-21T14:07:00",
@@ -102,8 +102,8 @@ def test_line_options_sorted_numerically_with_first_destination():
 
 
 def test_parse_coordinates_variants():
-    assert parse_coordinates("52.0801, 5.2501") == (52.0801, 5.2501)
-    assert parse_coordinates("52,0801; 5,2501") == (52.0801, 5.2501)
+    assert parse_coordinates("52.0801, 4.2501") == (52.0801, 4.2501)
+    assert parse_coordinates("52,0801; 4,2501") == (52.0801, 4.2501)
     assert parse_coordinates("99, 5") is None and parse_coordinates("abc") is None
 
 

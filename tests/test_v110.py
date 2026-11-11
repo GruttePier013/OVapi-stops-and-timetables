@@ -13,7 +13,7 @@ from custom_components.ovapi_bus_departures.stops import stop_key
 
 from .test_integration import URL, _tz, entry, passes, setup  # noqa: F401
 
-LOC = {"lat": 52.08, "lon": 5.25}
+LOC = {"lat": 52.08, "lon": 4.25}
 J = {"LinePublicNumber": "N9", "DestinationName50": "Nachtstad", "TargetDepartureTime": "2026-10-21T14:40:00",
      "ExpectedDepartureTime": "2026-10-21T14:40:00", "TripStopStatus": "PLANNED"}
 
@@ -23,7 +23,7 @@ async def two_stops(hass, aioclient_mock):
     aioclient_mock.get(URL.format("90100422"), json=passes("90100422", {"j9": J}))
     await setup(hass, entry([
         {"tpc_codes": ["90100421"], "name": "Alpha", **LOC},
-        {"tpc_codes": ["90100422"], "name": "Beta", "lat": 52.2, "lon": 5.4},
+        {"tpc_codes": ["90100422"], "name": "Beta", "lat": 52.2, "lon": 4.4},
     ]))
 
 
@@ -56,10 +56,10 @@ async def test_get_departures_filters_and_limit(hass, aioclient_mock):
 
 async def test_get_departures_for_a_zone(hass, aioclient_mock):
     await two_stops(hass, aioclient_mock)
-    hass.states.async_set("zone.work", "0", {"latitude": 52.08, "longitude": 5.25, "radius": 200})
+    hass.states.async_set("zone.work", "0", {"latitude": 52.08, "longitude": 4.25, "radius": 200})
     r = await departures(hass, {"zone": "zone.work"})
     assert [s["stop"] for s in r["stops"]] == ["Alpha"]  # Beta lies far outside the zone
-    hass.states.async_set("zone.big", "0", {"latitude": 52.1, "longitude": 5.3, "radius": 50_000})
+    hass.states.async_set("zone.big", "0", {"latitude": 52.1, "longitude": 4.3, "radius": 50_000})
     r = await departures(hass, {"zone": "zone.big", "limit": 3})
     assert [s["stop"] for s in r["stops"]] == ["Alpha", "Beta"]
     assert [d["stop"] for d in r["departures"]] == ["Alpha", "Beta", "Alpha"]  # combined, by time, at most 3

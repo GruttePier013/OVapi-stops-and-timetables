@@ -33,7 +33,7 @@ Manual: copy `custom_components/ovapi_bus_departures` to `config/custom_componen
 ## Adding stops
 
 1. Choose **Search stops** (or *Enter TPC codes* if you know the OVapi code).
-2. Type a place (`Voorbeeldstad`) or street + place and press Enter. Move the pin and resize the circle (50-5000 m). Optionally include tram, metro or ferry.
+2. Type a place (`Voorbeeldstad`) or street + place and press Enter. Typos are corrected: the field then shows the corrected spelling. Move the pin and resize the circle (50-5000 m). Optionally include tram, metro or ferry.
 3. Tick the stops. The first time the stop file from [NDOV Loket](https://data.ndovloket.nl/haltes/) is downloaded (about 13 MB). At most 25 directions are listed; reduce the radius to see the rest.
 4. Per stop: a name, the lines you want (empty = all) and optionally only certain destinations.
 
@@ -82,7 +82,7 @@ target:
   entity_id: all      # or specific stops, devices or areas
 ```
 
-A stop ignores a second manual refresh within 10 seconds. **Zone visit:** one refresh on entry, then the chosen interval until the stop time; persons sharing a visit count once, and which persons count is set under Configure → Settings.
+A stop ignores a second manual refresh within 10 seconds. **Zone visit:** one refresh on entry, then the chosen interval until the stop time; persons sharing a visit count once. Under Configure → Settings you choose which persons or devices (`person` or `device_tracker`) count; empty means all persons. A person without GPS counts at the position of the zone they are in (`home` or a named zone); `unavailable` and `unknown` never count as nearby.
 
 ## Action: get_departures
 

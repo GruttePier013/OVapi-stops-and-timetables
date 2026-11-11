@@ -23,7 +23,7 @@
       },
       "search": {
         "title": "Haltes zoeken",
-        "description": "Zoek op plaatsnaam of adres en toets **Enter**. Gebruik vervolgens de bijgewerkte kaart en marker om in een zone bushaltes te zoeken: verplaats de marker op de kaart of maak de zone groter (50–5000 m).",
+        "description": "Zoek op plaatsnaam of adres en toets **Enter**. Gebruik vervolgens de bijgewerkte kaart en marker om in een zone bushaltes te zoeken: verplaats de marker op de kaart of maak de zone groter (50–5000 m).{corrected}",
         "data": {
           "place": "Adres of plaatsnaam",
           "location": "Zone om haltes in te zoeken",
@@ -182,7 +182,7 @@
     "step": {
       "search": {
         "title": "Haltes zoeken",
-        "description": "Zoek op plaatsnaam of adres en toets **Enter**. Gebruik vervolgens de bijgewerkte kaart en marker om in een zone bushaltes te zoeken: verplaats de marker op de kaart of maak de zone groter (50–5000 m).",
+        "description": "Zoek op plaatsnaam of adres en toets **Enter**. Gebruik vervolgens de bijgewerkte kaart en marker om in een zone bushaltes te zoeken: verplaats de marker op de kaart of maak de zone groter (50–5000 m).{corrected}",
         "data": {
           "place": "Adres of plaatsnaam",
           "location": "Zone om haltes in te zoeken",
@@ -313,7 +313,7 @@
         "title": "Instellingen",
         "description": "Maximaal aantal vertrekken in het attribuut. Gevolgde personen bepalen wie de 'Personen nabij'-sensoren en 'Vernieuwen als in zone' activeren.",
         "data": {
-          "persons": "Gevolgde personen (leeg = alle)",
+          "persons": "Gevolgde personen of apparaten (leeg = alle personen)",
           "map_logo": "Logo op de HA-kaart gebruiken (uit = gewoon bus-icoon)",
           "stale_hours": "Na hoeveel uur zijn busgegevens verouderd?",
           "line_sensors": "Per lijn een sensor aanmaken (bijv. Lijn 74)",
@@ -633,6 +633,9 @@
     },
     "unknown_zone": {
       "message": "{zone} is geen zone met een positie."
+    },
+    "place_corrected": {
+      "message": "✏️ Spelling gecorrigeerd: **{typed}** → **{found}**. Controleer de kaart en verstuur."
     }
   },
   "title": "OVapi bussen en halteinformatie"

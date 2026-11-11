@@ -10,8 +10,14 @@ import logging
 from datetime import timedelta
 from typing import Any
 
-from homeassistant.const import EVENT_STATE_CHANGED
-from homeassistant.core import CALLBACK_TYPE, Event, EventStateChangedData, HomeAssistant, callback
+from homeassistant.const import (
+    ATTR_FRIENDLY_NAME,
+    EVENT_STATE_CHANGED,
+    STATE_HOME,
+    STATE_UNAVAILABLE,
+    STATE_UNKNOWN,
+)
+from homeassistant.core import CALLBACK_TYPE, Event, EventStateChangedData, HomeAssistant, State, callback
 from homeassistant.util import dt as dt_util
 
 from .api import distance_m
@@ -21,9 +27,11 @@ from .coordinator import StopCoordinator
 _LOGGER = logging.getLogger(__name__)
 
 
-@callback
-def _is_person_event(data: EventStateChangedData) -> bool:
-    return str(data["entity_id"]).startswith("person.")
+def _coordinates(state: State) -> tuple[float, float] | None:
+    try:
+        return float(state.attributes["latitude"]), float(state.attributes["longitude"])
+    except (KeyError, TypeError, ValueError):
+        return None
 
 
 def _moved_less_than(old: Any, new: Any, meters: float) -> bool:
@@ -56,7 +64,7 @@ class ProximityTracker:
     ) -> None:
         self.hass = hass
         self.coordinators = coordinators
-        self.persons = set(persons)  # empty = all persons
+        self.persons = set(persons)  # empty = all persons; explicit entries may also be device trackers
         # reference distance per (stop, person) used to detect approaching
         self._reference: dict[tuple[str, str], int] = {}
 
@@ -67,31 +75,52 @@ class ProximityTracker:
         return self.hass.bus.async_listen(
             EVENT_STATE_CHANGED,
             self._handle_state_change,
-            event_filter=_is_person_event,
+            event_filter=self._is_followed_event,
         )
 
     @callback
+    def _is_followed_event(self, data: EventStateChangedData) -> bool:
+        entity_id = str(data["entity_id"])
+        return entity_id in self.persons if self.persons else entity_id.startswith("person.")
+
+    @callback
     def _handle_state_change(self, event: Event[EventStateChangedData]) -> None:
-        if self.persons and event.data["entity_id"] not in self.persons:
-            return
         old, new = event.data.get("old_state"), event.data.get("new_state")
         if old is not None and new is not None and old.state == new.state and _moved_less_than(old, new, 5):
             return  # e.g. only battery or accuracy changed
         for c in self.coordinators.values():
             self.evaluate(c, trigger=True)
 
+    def _zone_position(self, state: State) -> tuple[float, float] | None:
+        """Position of a person without GPS fix: the zone they are in (``home`` or the zone's name)."""
+        if state.state == STATE_HOME:
+            home = self.hass.states.get("zone.home")
+            return (_coordinates(home) if home else None) or (self.hass.config.latitude, self.hass.config.longitude)
+        wanted = state.state.casefold()
+        for zone in self.hass.states.async_all("zone"):
+            if str(zone.attributes.get(ATTR_FRIENDLY_NAME, "")).casefold() == wanted:
+                return _coordinates(zone)
+        return None
+
     def _positions(self) -> dict[str, tuple[float, float]]:
+        """Where the followed persons/devices are.
+
+        - ``unavailable`` / ``unknown``: not present (an old position must not count as being nearby).
+        - GPS coordinates are used when there are any.
+        - ``home`` or the name of a zone without coordinates (for example presence by router or Bluetooth):
+          the position of that zone.
+        """
+        if self.persons:
+            states = [st for entity_id in self.persons if (st := self.hass.states.get(entity_id)) is not None]
+        else:
+            states = self.hass.states.async_all("person")
         out: dict[str, tuple[float, float]] = {}
-        for st in self.hass.states.async_all("person"):
-            if self.persons and st.entity_id not in self.persons:
+        for st in states:
+            if st.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
                 continue
-            lat, lon = st.attributes.get("latitude"), st.attributes.get("longitude")
-            if lat is None or lon is None:
-                continue
-            try:
-                out[st.entity_id] = (float(lat), float(lon))
-            except (TypeError, ValueError):
-                continue
+            position = _coordinates(st) or self._zone_position(st)
+            if position is not None:
+                out[st.entity_id] = position
         return out
 
     @callback

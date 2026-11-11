@@ -4,10 +4,10 @@ from __future__ import annotations
 import gzip
 
 # RD-coördinaten (EPSG:28992) van vaste testpunten, berekend met een onafhankelijke bibliotheek
-A_RD = (145602, 454656)   # 52.0801, 5.2501  (±12 m van de zoekpin 52.08, 5.25)
-B_RD = (145512, 454567)   # 52.0793, 5.2488  (overkant van de straat, ±110 m)
-NEAR_RD = (145650, 454700)  # ±65 m van A, andere StopPlace
-NODATA_RD = (145620, 454640)  # quay zonder live gegevens bij OVapi
+A_RD = (77054, 455258)   # 52.0801, 4.2501  (±12 m van de zoekpin 52.08, 4.25)
+B_RD = (76964, 455170)   # 52.0793, 4.2488  (overkant van de straat, ±110 m)
+NEAR_RD = (77102, 455302)  # ±65 m van A, andere StopPlace
+NODATA_RD = (77072, 455242)  # quay zonder live gegevens bij OVapi
 FAR_RD = (189821, 501490)  # 52.5, 5.9: ver weg
 
 

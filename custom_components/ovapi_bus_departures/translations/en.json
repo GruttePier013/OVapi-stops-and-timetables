@@ -23,7 +23,7 @@
       },
       "search": {
         "title": "Search stops",
-        "description": "Search by place name or address and press **Enter**. Then use the updated map and marker to find bus stops in a zone: move the marker or enlarge the zone (50–5000 m).",
+        "description": "Search by place name or address and press **Enter**. Then use the updated map and marker to find bus stops in a zone: move the marker or enlarge the zone (50–5000 m).{corrected}",
         "data": {
           "place": "Address or place name",
           "location": "Zone to look for stops",
@@ -182,7 +182,7 @@
     "step": {
       "search": {
         "title": "Search stops",
-        "description": "Search by place name or address and press **Enter**. Then use the updated map and marker to find bus stops in a zone: move the marker or enlarge the zone (50–5000 m).",
+        "description": "Search by place name or address and press **Enter**. Then use the updated map and marker to find bus stops in a zone: move the marker or enlarge the zone (50–5000 m).{corrected}",
         "data": {
           "place": "Address or place name",
           "location": "Zone to look for stops",
@@ -313,7 +313,7 @@
         "title": "Settings",
         "description": "Maximum number of departures in the attribute. Followed persons decide who triggers the 'Persons nearby' sensors and 'Refresh when in zone'.",
         "data": {
-          "persons": "Tracked persons (empty = all)",
+          "persons": "Tracked persons or devices (empty = all persons)",
           "map_logo": "Use the logo on the HA map (off = plain bus icon)",
           "stale_hours": "Hours before bus data counts as outdated",
           "line_sensors": "Create a sensor per line (e.g. Line 74)",
@@ -633,6 +633,9 @@
     },
     "unknown_zone": {
       "message": "{zone} is not a zone with a position."
+    },
+    "place_corrected": {
+      "message": "✏️ Spelling corrected: **{typed}** → **{found}**. Check the map and press Submit."
     }
   },
   "title": "OVapi bus departures"

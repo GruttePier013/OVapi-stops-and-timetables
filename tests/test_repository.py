@@ -139,8 +139,10 @@ def test_no_deprecated_calls_or_removed_features():
 
 
 def test_no_personal_data_in_repo():
-    needles = ("52.0907", "5.1214")
-    for path in [*INTEGRATION.glob("*.py"), ROOT / "README.md", ROOT / "CHANGELOG.md"]:
+    needles = ("52.0907", "5.1214", "5.2501", "5.25,", "Zeist", "Utrecht", "Overvecht")
+    for path in [*INTEGRATION.glob("*.py"), *INTEGRATION.glob("translations/*.json"), *(ROOT / "tests").rglob("*.py"), *(ROOT / "tests").rglob("*.json"), ROOT / "README.md", ROOT / "CHANGELOG.md"]:
+        if path.name == "test_repository.py":
+            continue
         text = path.read_text(encoding="utf-8")
         for needle in needles:
             assert needle not in text, f"{path.name}: {needle}"

@@ -87,9 +87,10 @@ ID_SUFFIX = {
     "departure_events": "departure_events",
 }
 ENTITY_ID_PREFIX = "ovapi"
-USER_AGENT = "HomeAssistant-ovapi_bus_departures/1.1.0 (custom integration; OVapi KV78Turbo client)"
+USER_AGENT = "HomeAssistant-ovapi_bus_departures/1.1.1 (custom integration; OVapi KV78Turbo client)"
 STATIC_URL = "/ovapi_bus_departures_static"  # public path for the map logo (entity_picture)
 PDOK_URL = "https://api.pdok.nl/bzk/locatieserver/search/v3_1/free"
+PDOK_SUGGEST_URL = "https://api.pdok.nl/bzk/locatieserver/search/v3_1/suggest"  # also returns spelling corrections
 # v0.ovapi.nl has a mismatching certificate (the YAML sensors also use verify_ssl: false)
 OVAPI_BASE = "https://v0.ovapi.nl"
 

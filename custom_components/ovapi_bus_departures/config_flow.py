@@ -241,6 +241,7 @@ class StopFlowMixin(_FlowBase):
     _search_input: dict[str, Any] | None = None
     _modes: list[str] = list(DEFAULT_MODES)
     _last_place: str = ""
+    _note: str = ""
     _picked: list[int]
 
     async def _async_finish_stops(self, stops: list[dict[str, Any]]):  # pragma: no cover - overridden
@@ -263,20 +264,29 @@ class StopFlowMixin(_FlowBase):
             if place and place.casefold() != self._last_place:
                 # New place name: put the map on the centre of the place and zoom out wide; do not search yet
                 try:
-                    lat, lon, _, kind = await get_api(self.hass).async_locate(place)
+                    lat, lon, found, kind = await get_api(self.hass).async_locate(place)
                 except AddressNotFound:
                     errors["base"] = "place_not_found"
                 except Exception:  # noqa: BLE001
                     _LOGGER.exception("Looking up the place name failed")
                     errors["base"] = "cannot_connect"
                 else:
-                    self._last_place = place.casefold()
+                    # typos: PDOK found a better spelling; show it in the field so the user sees what was searched
+                    corrected = found.strip() and found.strip().casefold() != place.casefold()
+                    self._last_place = (found.strip() if corrected else place).casefold()
+                    self._note = (
+                        await self._async_note("place_corrected", typed=_md(place), found=_md(found.strip()))
+                        if corrected
+                        else ""
+                    )
                     # place only: zoom out wide on the built-up area; street or address: closer
                     radius = {"woonplaats": PLACE_RADIUS, "weg": STREET_RADIUS}.get(kind, ADDRESS_RADIUS)
                     self._search_input = {
                         **user_input,
                         CONF_LOCATION: {"latitude": lat, "longitude": lon, "radius": radius},
                     }
+                    if corrected:
+                        self._search_input[CONF_PLACE] = found.strip()
                 return self._show_search(errors)
             self._modes = [m for m in (user_input.get(CONF_MODES) or DEFAULT_MODES) if m in MODES] or list(DEFAULT_MODES)
             try:
@@ -304,7 +314,16 @@ class StopFlowMixin(_FlowBase):
             }
         }
         schema = self.add_suggested_values_to_schema(_search_schema(), suggested)  # type: ignore[attr-defined]
-        return self.async_show_form(step_id="search", data_schema=schema, errors=errors)  # type: ignore[attr-defined]
+        return self.async_show_form(  # type: ignore[attr-defined]
+            step_id="search",
+            data_schema=schema,
+            errors=errors,
+            description_placeholders={"corrected": getattr(self, "_note", "")},
+        )
+
+    async def _async_note(self, key: str, **values: Any) -> str:
+        await self._async_load_texts()
+        return "\n\n" + self._t(key, **values)
 
     # ------------------------------------------------------------ stop file (3 phases, each with a % progress ring)
     def _set_progress(self, fraction: float) -> None:
@@ -753,7 +772,7 @@ class DutchBusOptionsFlow(EditStopsMixin, StopFlowMixin, config_entries.OptionsF
         return vol.Schema(
             {
                 vol.Optional(CONF_PERSONS, default=opts.get(CONF_PERSONS, [])): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="person", multiple=True)
+                    selector.EntitySelectorConfig(domain=["person", "device_tracker"], multiple=True)
                 ),
                 vol.Required(
                     CONF_ZONE_COOLDOWN, default=opts.get(CONF_ZONE_COOLDOWN, DEFAULT_ZONE_COOLDOWN)

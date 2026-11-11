@@ -9,14 +9,13 @@ from .chb_data import A_RD, B_RD, FAR_RD, chb_xml, gz, listing_html, psa_xml
 
 
 def test_rd_to_wgs84_matches_reference_points():
-    # referentiepunten (gecontroleerd met een onafhankelijke RD-bibliotheek); tolerantie ±3 m
+    # referentiepunten (nulpunt, Noord en Zuid onafhankelijk gecontroleerd; A en B afgeleid van de conversie zelf); tolerantie ±3 m
     for (x, y), (lat, lon) in {
         (155000, 463000): (52.15517440, 5.38720621),  # Zuidstad, het nulpunt van het stelsel
-        (136784, 455860): (52.0907, 5.1214),
         (233770, 582065): (53.2194, 6.5665),
         (176395, 317996): (50.8514, 5.6910),
-        A_RD: (52.0801, 5.2501),
-        B_RD: (52.0793, 5.2488),
+        A_RD: (52.0801, 4.2501),
+        B_RD: (52.0793, 4.2488),
         FAR_RD: (52.5, 5.9),
     }.items():
         got_lat, got_lon = chb.rd_to_wgs84(x, y)
@@ -49,7 +48,7 @@ def test_parse_chb_keeps_active_bus_quays(tmp_path, namespace):
     quay, place, name, town, side, lat, lon, bearing, modes = rows["NL:Q:90100411"]
     assert modes == "bus" and rows["NL:Q:90100413"][8] == "tram"
     assert (place, name, town, bearing) == ("NL:S:90100400", "Voorbeeldlaan", "Voorbeeldstad", 225)
-    assert lat == pytest.approx(52.0801, abs=3e-5) and lon == pytest.approx(5.2501, abs=5e-5)
+    assert lat == pytest.approx(52.0801, abs=3e-5) and lon == pytest.approx(4.2501, abs=5e-5)
     assert rows["NL:Q:82000101"][7] == -1  # onbekende rijrichting
 
 
@@ -96,13 +95,13 @@ def index(tmp_path):
 
 def test_find_quays_radius_and_other_side_of_the_street(index):
     # kleine straal: 411 en 777 liggen erin; 412 (overkant, zelfde StopPlace als 411) gaat mee, 82000101 niet
-    found = chb.find_quays(index, 52.08, 5.25, 60)
+    found = chb.find_quays(index, 52.08, 4.25, 60)
     assert [q["quay"] for q in found] == ["NL:Q:90100411", "NL:Q:90100777", "NL:Q:90100412"]
     assert found[0]["distance_m"] < 30 and found[-1]["distance_m"] > 60
     # grotere straal: ook de andere StopPlaces in de buurt, maar niet de verre
-    wide = chb.find_quays(index, 52.08, 5.25, 250)
+    wide = chb.find_quays(index, 52.08, 4.25, 250)
     assert {q["quay"] for q in wide} == {"NL:Q:90100411", "NL:Q:90100412", "NL:Q:82000101", "NL:Q:90100777"}
-    assert chb.find_quays(index, 52.08, 5.25, 250, limit=2) == wide[:2]
+    assert chb.find_quays(index, 52.08, 4.25, 250, limit=2) == wide[:2]
 
 
 def test_tpc_candidates_use_user_stop_codes_and_quay_number(index):
@@ -118,9 +117,9 @@ def test_find_quays_filters_on_transport_mode(tmp_path):
     path.write_bytes(gz(chb_xml("")))
     chb.build_index(path, None, tmp_path / "i.json")
     index = json.loads((tmp_path / "i.json").read_text())
-    bus = {q["quay"] for q in chb.find_quays(index, 52.0801, 5.2501, 100)}
-    both = {q["quay"] for q in chb.find_quays(index, 52.0801, 5.2501, 100, modes=("bus", "tram"))}
+    bus = {q["quay"] for q in chb.find_quays(index, 52.0801, 4.2501, 100)}
+    both = {q["quay"] for q in chb.find_quays(index, 52.0801, 4.2501, 100, modes=("bus", "tram"))}
     assert "NL:Q:90100413" not in bus and "NL:Q:90100413" in both and "NL:Q:90100411" in bus
     # oude index (8 kolommen) telt als bus
     index["quays"] = [r[:8] for r in index["quays"]]
-    assert {q["quay"] for q in chb.find_quays(index, 52.0801, 5.2501, 100)} >= {"NL:Q:90100411"}
+    assert {q["quay"] for q in chb.find_quays(index, 52.0801, 4.2501, 100)} >= {"NL:Q:90100411"}

@@ -37,7 +37,7 @@ def passes(code, extra=None):
     }
     p.update(extra or {})
     return {code: {"Stop": {"TimingPointName": "Voorbeeldlaan", "TimingPointTown": "Voorbeeldstad",
-                            "Latitude": 52.08, "Longitude": 5.25}, "Passes": p}}
+                            "Latitude": 52.08, "Longitude": 4.25}, "Passes": p}}
 
 
 @pytest.fixture(autouse=True)
@@ -127,7 +127,7 @@ async def test_flow_manual_creates_entry(hass, aioclient_mock):
     assert r["type"] is FlowResultType.CREATE_ENTRY
     stop = r["data"]["stops"][0]
     assert stop["name"] == "Voorbeeldstad, Voorbeeldlaan" and stop["tpc_codes"] == ["90100421"] and stop["lines"] == ["74", "34", "350"]
-    assert stop["lat"] == 52.08 and stop["lon"] == 5.25
+    assert stop["lat"] == 52.08 and stop["lon"] == 4.25
 
 
 DEFAULTS = {
@@ -231,7 +231,7 @@ async def test_diagnostic_count_map_url_and_location(hass, aioclient_mock):
     dev = dr.async_get(hass).async_get_device(identifiers={(DOMAIN, "90100421")})
     assert dev.configuration_url.startswith("https://www.openstreetmap.org/?mlat=52.08")
     trk = hass.states.get(reg.async_get_entity_id("sensor", DOMAIN, "90100421_location"))
-    assert trk.attributes["latitude"] == 52.08 and trk.attributes["longitude"] == 5.25
+    assert trk.attributes["latitude"] == 52.08 and trk.attributes["longitude"] == 4.25
 
 
 async def test_zero_departures_counts_zero(hass, aioclient_mock):
@@ -255,13 +255,13 @@ async def test_proximity_names_zone_timer_and_refresh(hass, aioclient_mock, free
     n = aioclient_mock.call_count
 
     freezer.tick(timedelta(minutes=5))
-    hass.states.async_set("person.jan", "not_home", {"latitude": 52.50, "longitude": 5.25, "friendly_name": "Jan"})
+    hass.states.async_set("person.jan", "not_home", {"latitude": 52.50, "longitude": 4.25, "friendly_name": "Jan"})
     await hass.async_block_till_done()
     assert hass.states.get(who).state == "None" and aioclient_mock.call_count == n  # ver weg
     assert hass.states.get(who).attributes["nearest_m"] > 40000
 
     # in de zone: de status toont de naam (geen aantal) en er wordt direct ververst
-    hass.states.async_set("person.jan", "not_home", {"latitude": 52.0815, "longitude": 5.2505, "friendly_name": "Jan"})  # ~170 m
+    hass.states.async_set("person.jan", "not_home", {"latitude": 52.0815, "longitude": 4.2505, "friendly_name": "Jan"})  # ~170 m
     await hass.async_block_till_done()
     assert hass.states.get(who).state == "Jan"
     assert hass.states.get(who).attributes["persons"] == ["Jan"] and hass.states.get(who).attributes["count"] == 1
@@ -283,7 +283,7 @@ async def test_proximity_names_zone_timer_and_refresh(hass, aioclient_mock, free
     await hass.services.async_call("switch", "turn_on", {"entity_id": sw}, blocking=True)
     assert coord._unsub_zone is not None
     # twee personen: namen gesorteerd en gescheiden door een komma
-    hass.states.async_set("person.anna", "not_home", {"latitude": 52.0815, "longitude": 5.2505, "friendly_name": "Anna"})
+    hass.states.async_set("person.anna", "not_home", {"latitude": 52.0815, "longitude": 4.2505, "friendly_name": "Anna"})
     await hass.async_block_till_done()
     assert hass.states.get(who).state == "Anna, Jan"
     # straal verkleinen: 170 m valt er dan buiten; de timer ververst niet meer
@@ -309,7 +309,7 @@ async def test_zone_timer_default_is_every_five_minutes(hass, aioclient_mock, mo
     monkeypatch.setattr(coord_mod, "async_track_time_interval", spy)
     aioclient_mock.get(URL.format("90100421"), json=passes("90100421"))
     await setup(hass, entry([{"tpc_codes": ["90100421"], "name": "K"}]))
-    hass.states.async_set("person.jan", "not_home", {"latitude": 52.0801, "longitude": 5.2501})
+    hass.states.async_set("person.jan", "not_home", {"latitude": 52.0801, "longitude": 4.2501})
     await hass.async_block_till_done()
     assert seen == [td(minutes=5)]  # één timer, standaard elke 5 minuten
 
@@ -472,9 +472,9 @@ def _mock_live(aioclient_mock):
     """OVapi kent 90100411/90100451 (één paal, twee vervoerders), 90100412 en 82000101; 90100777 niet."""
     live = {
         "90100411": passes("90100411")["90100411"],  # lijn 74 -> Station Centraal, lijn 34 -> Voorbeeldstad
-        "90100451": _tpc("Voorbeeldlaan", 52.0801, 5.2501, {"k": _pass("73", "Voorbeeldstad Centrum", "14:09")}),
-        "90100412": _tpc("Voorbeeldlaan", 52.0793, 5.2488, {"m": _pass("74", "Noordstad", "14:12")}),
-        "82000101": _tpc("Voorbeeldweg", 52.0804, 5.2507, {"n": _pass("350", "Station Overvecht", "14:15")}),
+        "90100451": _tpc("Voorbeeldlaan", 52.0801, 4.2501, {"k": _pass("73", "Voorbeeldstad Centrum", "14:09")}),
+        "90100412": _tpc("Voorbeeldlaan", 52.0793, 4.2488, {"m": _pass("74", "Noordstad", "14:12")}),
+        "82000101": _tpc("Voorbeeldweg", 52.0804, 4.2507, {"n": _pass("350", "Station Noord", "14:15")}),
     }
     aioclient_mock.get(re.compile(r"https://v0\.ovapi\.nl/tpc/.*"), json=live)
 
@@ -498,7 +498,7 @@ async def _open_search(hass):
     return await hass.config_entries.flow.async_configure(r["flow_id"], {"next_step_id": "search"})
 
 
-ZONE = {"latitude": 52.08, "longitude": 5.25, "radius": 250}
+ZONE = {"latitude": 52.08, "longitude": 4.25, "radius": 250}
 
 
 async def test_flow_downloads_unpacks_and_lists_stops(hass, aioclient_mock, tmp_path):
@@ -627,7 +627,7 @@ async def test_flow_zone_precedence_radius_clamp_and_no_stops(hass, monkeypatch,
             r["flow_id"], {"location": {**ZONE, "radius": given}})
         r = await _advance_to_form(hass, r)
         assert r["type"] is FlowResultType.ABORT and r["reason"] == "no_stops"
-        assert seen[-1] == (52.08, 5.25, expected)
+        assert seen[-1] == (52.08, 4.25, expected)
         r = await _open_search(hass)
 
 
@@ -637,7 +637,7 @@ async def test_candidates_live_validation_and_other_side_of_street(hass, aioclie
     (tmp_path / "p.gz").write_bytes(gz(psa_xml()))
     chb.build_index(tmp_path / "c.gz", tmp_path / "p.gz", api.index_path)
     _mock_live(aioclient_mock)
-    found, skipped = await api.async_candidates(52.08, 5.25, 60, dt_util.DEFAULT_TIME_ZONE, dt_util.now())
+    found, skipped = await api.async_candidates(52.08, 4.25, 60, dt_util.DEFAULT_TIME_ZONE, dt_util.now())
     # in de zone: 411 en 777 (geen live gegevens -> overgeslagen); de overkant (412) gaat mee
     assert [c["quay"] for c in found] == ["NL:Q:90100411", "NL:Q:90100412"] and skipped == 1
     assert found[0]["tpc_codes"] == ["90100411", "90100451"] and set(found[0]["lines"]) == {"34", "73", "74"}
@@ -658,7 +658,7 @@ async def test_download_and_unpack_report_real_progress(hass, aioclient_mock, tm
     assert unpack[-1] == 1.0 and any(0.05 < x < 0.99 for x in unpack)
     assert not api.chb_gz.exists() and not api.psa_gz.exists()  # 13 MB-download opgeruimd
     assert await api.async_chb_state() == "fresh"
-    quays = await api.async_quays_near(52.08, 5.25, 250)
+    quays = await api.async_quays_near(52.08, 4.25, 250)
     assert {q["quay"] for q in quays} >= {"NL:Q:90100411", "NL:Q:82000101"}
 
 
@@ -668,7 +668,7 @@ async def test_missing_assignment_table_falls_back_to_quay_number(hass, aioclien
     await api.async_download_chb()
     assert not api.psa_gz.exists()
     await api.async_build_chb_index()
-    quays = {q["quay"]: q for q in await api.async_quays_near(52.08, 5.25, 250)}
+    quays = {q["quay"]: q for q in await api.async_quays_near(52.08, 4.25, 250)}
     assert quays["NL:Q:90100411"]["tpc_candidates"] == ["90100411"]  # zonder verwijstabel: het quaynummer
 
 
@@ -679,7 +679,7 @@ async def test_results_step_offers_ndov_refresh_and_flags_missing_departures(has
     (tmp_path / "c.gz").write_bytes(gz(chb_xml()))
     chb.build_index(tmp_path / "c.gz", None, api.index_path, source_date="2026-10-01")  # vers genoeg, geen download
     _mock_ndov(aioclient_mock)
-    live = {"90100411": _tpc("Hoofdlaan", 52.0801, 5.2501, {})}  # bekend bij OVapi, maar geen vertrekken
+    live = {"90100411": _tpc("Hoofdlaan", 52.0801, 4.2501, {})}  # bekend bij OVapi, maar geen vertrekken
     aioclient_mock.get(re.compile(r"https://v0\.ovapi\.nl/tpc/.*"), json=live)
     r = await _open_search(hass)
     r = await hass.config_entries.flow.async_configure(r["flow_id"], {"location": ZONE})

@@ -20,7 +20,7 @@ def _coord(hass):
 
 async def _setup(hass, aioclient_mock, **options):
     aioclient_mock.get(URL.format(CODE), json=passes(CODE))
-    e = entry([{"tpc_codes": [CODE], "name": "K", "lat": 52.08, "lon": 5.25}], **options)
+    e = entry([{"tpc_codes": [CODE], "name": "K", "lat": 52.08, "lon": 4.25}], **options)
     await setup(hass, e)
     return e
 
@@ -105,7 +105,7 @@ async def test_attribute_only_person_changes_do_not_reevaluate(hass, aioclient_m
     calls = []
     original = ProximityTracker.evaluate
     monkeypatch.setattr(ProximityTracker, "evaluate", lambda self, c, trigger: (calls.append(1), original(self, c, trigger)))
-    pos = {"latitude": 52.5, "longitude": 5.25}
+    pos = {"latitude": 52.5, "longitude": 4.25}
     hass.states.async_set("person.jan", "not_home", {**pos, "battery": 90})
     await hass.async_block_till_done()
     first = len(calls)
@@ -113,7 +113,7 @@ async def test_attribute_only_person_changes_do_not_reevaluate(hass, aioclient_m
     hass.states.async_set("person.jan", "not_home", {**pos, "battery": 80})  # same place
     await hass.async_block_till_done()
     assert len(calls) == first
-    hass.states.async_set("person.jan", "not_home", {"latitude": 52.51, "longitude": 5.25})
+    hass.states.async_set("person.jan", "not_home", {"latitude": 52.51, "longitude": 4.25})
     await hass.async_block_till_done()
     assert len(calls) > first
 

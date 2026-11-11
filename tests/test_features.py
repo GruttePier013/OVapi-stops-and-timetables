@@ -14,7 +14,7 @@ from custom_components.ovapi_bus_departures.diagnostics import async_get_config_
 
 from .test_integration import URL, _tz, entry, passes, setup  # noqa: F401
 
-LOC = {"lat": 52.08, "lon": 5.25}
+LOC = {"lat": 52.08, "lon": 4.25}
 
 
 def eid(hass, key, domain="sensor", code="90100421"):
@@ -207,7 +207,7 @@ async def test_stop_on_map_is_diagnostic(hass, aioclient_mock):
 
 
 async def test_zone_switch_default_off_inside_home_zone(hass, aioclient_mock):
-    hass.config.latitude, hass.config.longitude, hass.config.radius = 52.08, 5.25, 100
+    hass.config.latitude, hass.config.longitude, hass.config.radius = 52.08, 4.25, 100
     aioclient_mock.get(URL.format("90100421"), json=passes("90100421"))
     aioclient_mock.get(URL.format("90100422"), json=passes("90100422"))
     await setup(hass, entry([
@@ -228,7 +228,7 @@ async def test_place_name_recenters_map_with_2km_radius(hass, monkeypatch):
 
     async def fake_locate(text):
         calls.append(text)
-        return 52.0907, 5.2376, text, next(kinds)
+        return 52.1, 4.3, text, next(kinds)
 
     monkeypatch.setattr(get_api(hass), "async_locate", fake_locate)
     r = await hass.config_entries.flow.async_init(DOMAIN, context={"source": "user"})
@@ -241,7 +241,7 @@ async def test_place_name_recenters_map_with_2km_radius(hass, monkeypatch):
     # nog niet zoeken: het formulier verschijnt opnieuw met de kaart op het centrum en 2 km radius
     assert r["type"] is FlowResultType.FORM and r["step_id"] == "search" and calls == ["Voorbeeldstad"]
     key = next(k for k in r["data_schema"].schema if str(k) == "location")
-    assert key.description["suggested_value"] == {"latitude": 52.0907, "longitude": 5.2376, "radius": 2000}
+    assert key.description["suggested_value"] == {"latitude": 52.1, "longitude": 4.3, "radius": 2000}
     # straat + plaats: de pin op de straat, dichterbij (500 m)
     r = await hass.config_entries.flow.async_configure(r["flow_id"], {"place": "Voorbeeldlaan Voorbeeldstad", "location": loc})
     key = next(k for k in r["data_schema"].schema if str(k) == "location")

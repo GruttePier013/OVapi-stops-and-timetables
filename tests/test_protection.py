@@ -157,7 +157,7 @@ async def _zone_setup(hass, aioclient_mock, monkeypatch, approach_only=False):
 
 
 def _person(hass, near: bool, lat: float | None = None):
-    pos = {"latitude": lat or 52.0801, "longitude": 5.2501} if near else {"latitude": 53.0, "longitude": 6.0}
+    pos = {"latitude": lat or 52.0801, "longitude": 4.2501} if near else {"latitude": 53.0, "longitude": 6.0}
     hass.states.async_set("person.alice", "home" if near else "not_home", pos)
 
 
@@ -271,7 +271,7 @@ async def test_distance_to_person_sensor(hass, aioclient_mock):
     st = hass.states.get(sensor)
     assert int(st.state) % 1000 == 0 and int(st.state) > 50_000  # far away: rounded to whole kilometers
     assert st.attributes["person"] == "Alice" and st.attributes["in_zone"] is False
-    hass.states.async_set("person.alice", "home", {"latitude": 52.0801, "longitude": 5.2501, "friendly_name": "Alice"})
+    hass.states.async_set("person.alice", "home", {"latitude": 52.0801, "longitude": 4.2501, "friendly_name": "Alice"})
     await hass.async_block_till_done()
     st = hass.states.get(sensor)
     assert st.state == "10" and st.attributes["in_zone"] is True  # 13 m, rounded to 10 m
@@ -388,7 +388,7 @@ async def test_all_entities_exclude_attributes_from_the_recorder():
 
 async def test_diagnostics_config_and_device(hass, aioclient_mock):
     aioclient_mock.get(URL.format(CODE), json=passes(CODE))
-    e = entry([{**STOP[0], "lat": 52.08, "lon": 5.25}], persons=["person.alice"])
+    e = entry([{**STOP[0], "lat": 52.08, "lon": 4.25}], persons=["person.alice"])
     await setup(hass, e)
     diag = await async_get_config_entry_diagnostics(hass, e)
     assert diag["api"]["outage"] is False and diag["stops"][CODE]["health"]["paused"] is False

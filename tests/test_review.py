@@ -17,7 +17,7 @@ from custom_components.ovapi_bus_departures.texts import Texts
 
 from .test_integration import URL, _tz, entry, passes, setup  # noqa: F401
 
-LOC = {"lat": 52.08, "lon": 5.25}
+LOC = {"lat": 52.08, "lon": 4.25}
 
 
 def eid(hass, key, domain="sensor", code="90100421"):

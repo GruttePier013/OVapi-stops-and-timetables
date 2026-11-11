@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import difflib
 import json
 import logging
 import ssl
@@ -27,6 +28,7 @@ from .const import (
     MAX_DOWNLOAD_BYTES,
     MAX_PARALLEL_REQUESTS,
     OVAPI_BASE,
+    PDOK_SUGGEST_URL,
     PDOK_URL,
     PREVIEW_MAX_STOPS,
     RATE_LIMIT_DEFAULT_WAIT,
@@ -57,6 +59,66 @@ class OvapiBlocked(Exception):
 
 class AddressNotFound(ValueError):
     """PDOK does not know the address."""
+
+
+def _words(text: str) -> list[str]:
+    return [w for w in "".join(c if c.isalnum() else " " for c in text.casefold()).split() if w]
+
+
+def covers(text: str, doc: dict[str, Any]) -> bool:
+    """True when every word of the input appears (exactly) in the name PDOK returned."""
+    known = set(_words(str(doc.get("weergavenaam", ""))))
+    return all(w in known or any(k.startswith(w) for k in known) for w in _words(text))
+
+
+def similarity(text: str, doc: dict[str, Any]) -> float:
+    """0..1: how well the words of the input match the words of the PDOK name (tolerant for typos)."""
+    wanted, known = _words(text), _words(str(doc.get("weergavenaam", "")))
+    if not wanted or not known:
+        return 0.0
+    best = (max(difflib.SequenceMatcher(None, w, k).ratio() for k in known) for w in wanted)
+    return sum(best) / len(wanted)
+
+
+def canonical_text(doc: dict[str, Any]) -> str:
+    """A search text for the place of ``doc`` (for example ``Voorbeeldlaan Voorbeeldstad``)."""
+    parts = [p.strip() for p in str(doc.get("weergavenaam", "")).split(",") if p.strip()]
+    if doc.get("type") == "woonplaats":
+        parts = parts[:1]
+        parts[0:1] = [parts[0].removeprefix("Woonplaats ").strip()] if parts else []
+    else:
+        parts = parts[:2]
+    return " ".join(parts)
+
+
+def _located(doc: dict[str, Any], text: str) -> tuple[float, float, str, str]:
+    lon, lat = map(float, str(doc["centroide_ll"])[6:-1].split())
+    return lat, lon, text, str(doc.get("type", ""))
+
+
+def spelling_corrections(text: str, spellcheck: Any) -> list[str]:
+    """Corrected texts from a Solr ``spellcheck`` block (``collations`` first, then word by word)."""
+    if not isinstance(spellcheck, dict):
+        return []
+    found: list[str] = []
+    collations = spellcheck.get("collations") or []
+    items = collations if isinstance(collations, list) else [collations]
+    for item in items:
+        value = item.get("collationQuery") if isinstance(item, dict) else item
+        if isinstance(value, str) and value != "collation":
+            found.append(value)
+    suggestions = spellcheck.get("suggestions") or []
+    if isinstance(suggestions, list):
+        replaced = text
+        for word, info in zip(suggestions[::2], suggestions[1::2], strict=False):
+            options = info.get("suggestion") if isinstance(info, dict) else None
+            first = options[0] if isinstance(options, list) and options else None
+            first = first.get("word") if isinstance(first, dict) else first
+            if isinstance(word, str) and isinstance(first, str):
+                replaced = replaced.replace(word, first)
+        if replaced != text:
+            found.append(replaced)
+    return list(dict.fromkeys(f for f in found if f.strip()))
 
 
 def _content_length(r: Any) -> int:
@@ -175,48 +237,58 @@ class DutchBusApi:
             self._last_call = time.monotonic()
 
     # ------------------------------------------------------------------ PDOK
-    async def async_geocode(self, address: str, place: bool = False) -> tuple[float, float, str]:
-        """Address or (``place=True``) place name to (lat, lon, display name); a place gives the village/town centre."""
-        params: dict[str, str | int] = {"q": address, "rows": 10, "fl": "weergavenaam,centroide_ll,type"}
-        if place:
-            params["fq"] = "type:woonplaats"
-        async with self.session.get(
-            PDOK_URL, params=params, headers=HEADERS, timeout=ClientTimeout(total=25)
-        ) as r:
-            r.raise_for_status()
-            data = await r.json(content_type=None)
-        docs = data.get("response", {}).get("docs", [])
-        if not docs:
-            raise AddressNotFound(address)
-        doc = next((x for x in docs if x.get("type") == ("woonplaats" if place else "adres")), docs[0])
-        point = doc.get("centroide_ll", "")
-        if not point.startswith("POINT("):
-            raise AddressNotFound(address)
-        lon, lat = map(float, point[6:-1].split())
-        return lat, lon, doc.get("weergavenaam", address)
-
-    async def async_locate(self, text: str) -> tuple[float, float, str, str]:
-        """Address lookup: place name, street + place or address -> (lat, lon, display name, type).
-
-        ``type`` is ``woonplaats`` (town centre), ``weg`` (point on the street), ``adres`` or ``postcode``.
-        """
+    async def _pdok_free(self, query: str, rows: int = 5) -> list[dict[str, Any]]:
         params: dict[str, str | int] = {
-            "q": text,
-            "rows": 5,
+            "q": query,
+            "rows": rows,
             "fl": "weergavenaam,centroide_ll,type",
             "fq": "type:(woonplaats OR weg OR adres OR postcode)",
         }
-        async with self.session.get(
-            PDOK_URL, params=params, headers=HEADERS, timeout=ClientTimeout(total=25)
-        ) as r:
+        async with self.session.get(PDOK_URL, params=params, headers=HEADERS, timeout=ClientTimeout(total=25)) as r:
             r.raise_for_status()
             data = await r.json(content_type=None)
-        for doc in data.get("response", {}).get("docs", []):
-            point = doc.get("centroide_ll", "")
-            if point.startswith("POINT("):
-                lon, lat = map(float, point[6:-1].split())
-                return lat, lon, doc.get("weergavenaam", text), doc.get("type", "")
-        raise AddressNotFound(text)
+        docs = data.get("response", {}).get("docs", []) if isinstance(data, dict) else []
+        return [d for d in docs if isinstance(d, dict) and str(d.get("centroide_ll", "")).startswith("POINT(")]
+
+    async def _pdok_spelling(self, text: str) -> list[str]:
+        """Corrected versions of ``text`` according to the PDOK spell checker (best effort, may be empty)."""
+        params: dict[str, str | int] = {"q": text, "rows": 1}
+        async with self.session.get(PDOK_SUGGEST_URL, params=params, headers=HEADERS, timeout=ClientTimeout(total=25)) as r:
+            r.raise_for_status()
+            data = await r.json(content_type=None)
+        return spelling_corrections(text, data.get("spellcheck") if isinstance(data, dict) else None)
+
+    async def async_locate(self, text: str) -> tuple[float, float, str, str]:
+        """Address lookup: place name, street + place or address -> (lat, lon, text, type).
+
+        ``type`` is ``woonplaats`` (town centre), ``weg`` (point on the street), ``adres`` or ``postcode``.
+        ``text`` is the input, or the corrected spelling when the input had typos and a better match was found.
+        """
+        text = " ".join(text.split())
+        docs = await self._pdok_free(text)
+        best = docs[0] if docs else None
+        if best is not None and covers(text, best):
+            return _located(best, text)
+        # Not (fully) recognised: try fuzzy matching and the PDOK spell checker; keep the best candidate
+        candidates: list[tuple[dict[str, Any], str]] = [(d, text) for d in docs]
+        attempts = [" ".join(f"{w}~1" if len(w) >= 4 and w.isalpha() else w for w in text.split())]
+        try:
+            attempts += (await self._pdok_spelling(text))[:2]
+        except (ClientError, TimeoutError, ValueError) as err:
+            _LOGGER.debug("PDOK spell checker not available: %s", err)
+        for query in attempts:
+            if query == text:
+                continue
+            try:
+                candidates += [(d, query) for d in await self._pdok_free(query)]
+            except (ClientError, TimeoutError, ValueError) as err:  # a fuzzy query may be refused; the rest still works
+                _LOGGER.debug("PDOK query %r failed: %s", query, err)
+        if not candidates:
+            raise AddressNotFound(text)
+        doc, query = max(candidates, key=lambda c: (similarity(text, c[0]), c[1] == text))
+        if doc is best or (best is not None and similarity(text, doc) <= similarity(text, best) + 0.05):
+            return _located(best or doc, text)
+        return _located(doc, canonical_text(doc))
 
     # ------------------------------------------------------------------ OVapi
     async def _ovapi_request(self, session: Any, path: str, timeout: int, *, verified: bool = True) -> Any:

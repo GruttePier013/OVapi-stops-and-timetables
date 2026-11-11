@@ -12,12 +12,12 @@ async def test_zone_timer_really_refreshes_in_real_time(hass, aioclient_mock, mo
     coordinator = e.runtime_data.coordinators["90100421"]
     coordinator.zone_interval_min = 0.2 / 60  # 0.2 s
     coordinator.approach_only = False  # refresh at every tick while someone is in the zone
-    hass.states.async_set("person.jan", "not_home", {"latitude": 52.0801, "longitude": 5.2501})
+    hass.states.async_set("person.jan", "not_home", {"latitude": 52.0801, "longitude": 4.2501})
     await hass.async_block_till_done()
     start = aioclient_mock.call_count
     await asyncio.sleep(0.75)
     assert aioclient_mock.call_count >= start + 2  # meerdere verversingen binnen de zone
-    hass.states.async_set("person.jan", "not_home", {"latitude": 52.50, "longitude": 5.25})
+    hass.states.async_set("person.jan", "not_home", {"latitude": 52.50, "longitude": 4.25})
     await hass.async_block_till_done()
     stopped = aioclient_mock.call_count
     await asyncio.sleep(0.5)

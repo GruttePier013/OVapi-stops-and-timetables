@@ -2,6 +2,17 @@
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.1.1]
+### Added
+- Typos in the place or address when searching stops are corrected (fuzzy search and the PDOK spell checker). The field shows the corrected spelling with a note.
+- Devices (`device_tracker`) can be followed for zone visits, next to persons.
+
+### Fixed
+- Zone visits and the distance sensors look at the state of the person or device: `unavailable` and `unknown` no longer keep an old position, and a person at `home` or in a named zone without GPS counts at that zone.
+
+### Changed
+- All personal and location-specific data is removed from tests and test data; the repository test checks this.
+
 ## [1.1.0]
 ### Added
 - Action `ovapi_bus_departures.get_departures` (with a response): the upcoming departures for a specific stop (device or entity as target) and/or all stops inside a zone, optionally filtered by line, `limit` and `live_only`. It uses the data the stops already have and does not call OVapi.
